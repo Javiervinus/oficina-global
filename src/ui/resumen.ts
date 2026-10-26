@@ -22,6 +22,9 @@
 //   las otras pestañas cada 10 s).
 // - Sigue sonando al ir a otra página de Paperclip (el chip de una tarea): el
 //   reproductor lo dibuja el botón de la barra de arriba, que está en todas.
+// - Una voz a la vez con «Leer contexto» (JST-276, design-spec de JST-282 §7):
+//   leer el contexto pausa el Resumen (y queda en pausa al terminar); si el
+//   Resumen sigue o vuelve a leer, el contexto se calla (`alHablar`).
 import { useSyncExternalStore } from "react";
 import { rolesDeEmpresa } from "../avisos.js";
 import type { AgenteOficina } from "../estado.js";
@@ -155,6 +158,10 @@ export class ControlResumen {
   fallanResumen: EmpresaRes[] = [];
   /** Quién escribe el resumen que suena. */
   conIa = false;
+  /** «Leer contexto» está cargando o leyendo: en pausa, el reproductor dice «En pausa · lees el contexto» (JST-276). */
+  contextoLee = false;
+  /** Lo que se calla justo antes de que el Resumen diga una frase («Leer contexto»). */
+  private readonly callarAntes = new Set<() => void>();
   readonly registroIa: RegistroIa[] = [];
   private readonly oyentes = new Set<() => void>();
   private abortar: AbortController | null = null;
@@ -429,6 +436,9 @@ export class ControlResumen {
       alCambiar: () => {
         if (this.lector === lector) this.avisar();
       },
+      antesDeHablar: () => {
+        if (this.lector === lector) for (const fn of this.callarAntes) fn();
+      },
     });
     this.voz = voz;
     this.lector = lector;
@@ -520,6 +530,24 @@ export class ControlResumen {
   /** El reproductor se ve (también «Listo»). */
   abierto(): boolean {
     return !!this.lector && this.lector.fase !== "off";
+  }
+
+  /** «Leer contexto» (JST-276 §7): si el Resumen suena, se pausa (no se cierra); ▶ lo retoma. */
+  pausarPorContexto(): void {
+    const l = this.lector;
+    if (l?.activo()) l.pausar();
+  }
+
+  fijarContextoLee(on: boolean): void {
+    if (this.contextoLee === on) return;
+    this.contextoLee = on;
+    this.avisar();
+  }
+
+  /** `fn` se llama justo antes de cada frase del Resumen (para callar «Leer contexto»). Devuelve cómo quitarlo. */
+  alHablar(fn: () => void): () => void {
+    this.callarAntes.add(fn);
+    return () => this.callarAntes.delete(fn);
   }
 
   alternarTexto(on?: boolean): void {

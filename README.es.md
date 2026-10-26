@@ -15,11 +15,11 @@ Plugin para [Paperclip](https://github.com/paperclipai/paperclip) que dibuja a l
 - **Avisos y voces** (apagados hasta que los actives). Cuando un agente empieza a necesitarte suena una campanita y su voz dice qué necesita («te necesito», «tengo un error», «terminé», «empecé»), con una voz distinta por agente.
 - **Rótulo de la sala.** Bajo cada sala, un rótulo cuenta de qué se trata cada tarea, una a la vez.
 - **Resumen.** El botón «Resumen» te lee en voz alta qué se hizo, qué te toca, en qué se trabaja y qué está en cola.
-- **Leer contexto.** En la barra de cada tarea, un botón lee en voz alta de qué se trata y qué te preguntan.
+- **Leer contexto.** En la barra de arriba de cada tarea, un botón lee en voz alta de qué se trata y qué te preguntan.
 - **Modo TV.** Pantalla completa en 1920×1080, y un enlace para abrirla en un TV con sesión.
 - **Celular.** El piso entero y, al tocar una sala, esa sala acercada.
 
-Se ve en el menú lateral («Oficina global»), en su página, en un widget del Dashboard y en la barra de arriba (en el celular).
+Se ve en el menú lateral («Oficina global»), en su página, en un widget del Dashboard y en la barra de arriba (en el celular; en las tareas, también en el computador).
 
 ## Requisitos
 

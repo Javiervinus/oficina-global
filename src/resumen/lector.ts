@@ -88,6 +88,8 @@ export interface DepsLector {
   programar(fn: () => void, ms: number): () => void;
   /** Algo cambió (para volver a dibujar). */
   alCambiar(): void;
+  /** Justo antes de cada frase: lo que se calla para que suene una voz a la vez («Leer contexto», JST-276). */
+  antesDeHablar?(): void;
 }
 
 export class Lector {
@@ -349,6 +351,7 @@ export class Lector {
     // Lo que se oye cuenta desde que su audio empieza a sonar, no mientras se espera.
     const oyendo: { clave: string; desde: number | null; ms: number } = { clave: `${this.pos.s}:${this.pos.k}`, desde: null, ms: this.sonando.ms };
     this.oyendo = oyendo;
+    this.d.antesDeHablar?.();
     const h = this.d.voz.decir(
       f,
       this.velocidad,

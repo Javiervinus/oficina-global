@@ -17,11 +17,11 @@ A [Paperclip](https://github.com/paperclipai/paperclip) plugin that draws the ag
 - **Notifications and voices** (off until you turn them on). When an agent starts needing you, a bell rings and its voice says what it needs («te necesito», I need you; «tengo un error», I have an error; «terminé», I'm done; «empecé», I started), with a different voice for each agent.
 - **Room sign.** Under each room, a sign tells what each issue is about, one at a time.
 - **Summary.** The «Resumen» (summary) button reads out loud what got done, what is waiting for you, what is being worked on and what is queued.
-- **Read context.** In each issue's toolbar, a «Leer contexto» (read context) button reads out loud what the issue is about and what you are being asked.
+- **Read context.** In the top bar of each issue, a «Leer contexto» (read context) button reads out loud what the issue is about and what you are being asked.
 - **TV mode.** Full screen at 1920×1080, plus a link to open it on a TV with a session.
 - **Phone.** The whole floor and, when you tap a room, that room zoomed in.
 
-It shows up in the sidebar («Oficina global»), on its own page, as a Dashboard widget and in the top bar (on phones).
+It shows up in the sidebar («Oficina global»), on its own page, as a Dashboard widget and in the top bar (on phones; on issue pages, on computers too).
 
 ## Requirements
 
