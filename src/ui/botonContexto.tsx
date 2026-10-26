@@ -1,26 +1,18 @@
-// Botón «Leer contexto» en la barra de herramientas de una tarea (JST-269):
-// al apretarlo lee en voz alta un resumen de la tarea y su padre para que el
-// usuario entienda por qué le piden una decisión sin tener que leer todo el hilo.
+// Lo que lee «Leer contexto» (JST-269): un resumen de la tarea y su padre para
+// que el usuario entienda por qué le piden una decisión sin leer todo el hilo.
+// Desde la 0.9.6 (JST-276, design-spec de JST-282) el botón va en la barra de
+// arriba (`contextoBarra.tsx`) y la lectura de a una frase en `contextoLector.ts`;
+// aquí queda qué se lee.
 //
-// - Solo se muestra cuando `entityId` es una tarea (el slot es `toolbarButton`
-//   con `entityTypes: ["issue"]`, así que siempre hay un ID de tarea).
-// - Fetch de `/api/issues/:id` con la sesión del usuario (igual que el resto
-//   de la Oficina: `credentials: "include"`, URL relativa).
+// - Fetch de `/api/issues/:ref` (el código, «JST-181», o el id) con la sesión del
+//   usuario (igual que el resto de la Oficina: `credentials: "include"`, URL relativa).
 // - Fetch de los últimos comentarios de la tarea (máximo 10; se leen 3, sin
 //   los avisos automáticos de Paperclip). El texto lo limpia `contextoVoz.ts`.
 // - Primero dice lo que te preguntan (JST-273): la tarjeta pendiente o, si no
 //   hay, el último comentario «🙋 Te toca» (`contextoPregunta.ts`). Después el
 //   porqué: la tarea, el padre y lo último del hilo, más corto.
-// - Lee con la voz del navegador en español; si no hay voz, muestra el texto
-//   en un subtítulo breve.
-// - Mientras suena muestra «⏹ Detener»; al terminar vuelve al ícono. Al salir de
-//   la tarea se calla (JST-277).
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useHostContext } from "@paperclipai/plugin-sdk/ui";
 import { preguntaPendiente, teTocaDelHilo } from "./contextoPregunta.js";
 import { enIngles, esComentarioAutomatico, textoParaVoz } from "./contextoVoz.js";
-import { cx, Icono } from "./piso.js";
-import { vocesDisponibles } from "./sonido.js";
 import type { Interaccion } from "../shared.js";
 
 // ---------------------------------------------------------------------------
@@ -143,122 +135,8 @@ export function componerTexto(issue: IssueSummary, comentarios: CommentSummary[]
   return partes.join(" ");
 }
 
-// ---------------------------------------------------------------------------
-// Lectura con voz del navegador
-// ---------------------------------------------------------------------------
-
-/**
- * Lee `texto` y devuelve con qué pararlo. Parar solo corta si esta lectura sigue sonando: la voz del
- * navegador es una sola para toda la pestaña y la Oficina también la usa (JST-277).
- */
-function leerEnVoz(texto: string, alTerminar: () => void): () => void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-    const t = setTimeout(alTerminar, 100);
-    return () => clearTimeout(t);
-  }
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(texto);
-  const voces = vocesDisponibles();
-  const vEspanol = voces[0];
-  if (vEspanol) {
-    u.voice = vEspanol;
-    u.lang = vEspanol.lang;
-  } else {
-    u.lang = "es-MX";
-  }
-  u.rate = 1.05;
-  let sonando = true;
-  const fin = () => {
-    if (!sonando) return;
-    sonando = false;
-    alTerminar();
-  };
-  u.onend = fin;
-  u.onerror = fin;
-  window.speechSynthesis.speak(u);
-  return () => {
-    if (!sonando) return;
-    sonando = false;
-    window.speechSynthesis.cancel();
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Componente
-// ---------------------------------------------------------------------------
-
-type Estado = "idle" | "cargando" | "leyendo";
-
-export function BotonContextoTarea() {
-  const { entityId } = useHostContext();
-  const [estado, setEstado] = useState<Estado>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const detenerRef = useRef<() => void>(() => undefined);
-  // Cuenta las lecturas pedidas: una que todavía está cargando cuando se para no empieza a hablar.
-  const lecturaRef = useRef(0);
-
-  const detener = useCallback(() => {
-    lecturaRef.current += 1;
-    detenerRef.current();
-    detenerRef.current = () => undefined;
-    setEstado("idle");
-  }, []);
-
-  // Al salir de la tarea (a otra, o a una página sin el botón) la lectura se corta (JST-277): si no,
-  // seguía hasta el final y ya no había una X para pararla.
-  useEffect(
-    () => () => {
-      detener();
-      setError(null);
-    },
-    [entityId, detener],
-  );
-
-  const leer = useCallback(async () => {
-    if (!entityId) return;
-    if (estado === "leyendo") {
-      detener();
-      return;
-    }
-    const lectura = ++lecturaRef.current;
-    setError(null);
-    setEstado("cargando");
-    try {
-      const [issue, comentarios, tarjetas] = await Promise.all([
-        fetchIssue(entityId),
-        fetchComments(entityId),
-        fetchInteracciones(entityId),
-      ]);
-      if (lectura !== lecturaRef.current) return;
-      const texto = componerTexto(issue, comentarios, tarjetas);
-      setEstado("leyendo");
-      detenerRef.current = leerEnVoz(texto, () => setEstado("idle"));
-    } catch (e) {
-      if (lectura !== lecturaRef.current) return;
-      setError("No se pudo cargar la tarea.");
-      setEstado("idle");
-    }
-  }, [entityId, estado, detener]);
-
-  if (!entityId) return null;
-
-  const cargando = estado === "cargando";
-  const leyendo = estado === "leyendo";
-
-  return (
-    <button
-      type="button"
-      className={cx("of-tbtn", (leyendo || cargando) && "is-active")}
-      aria-label={leyendo ? "Detener lectura" : "Leer contexto de la tarea"}
-      title={leyendo ? "Detener" : error ?? "Leer contexto"}
-      onClick={leer}
-      disabled={cargando}
-    >
-      {leyendo ? (
-        <Icono nombre="x" tam={16} />
-      ) : (
-        <Icono nombre="volume-2" tam={16} />
-      )}
-    </button>
-  );
+/** Lo que dice «Leer contexto» de esa tarea (el código o el id). Falla si no se pudo leer la tarea. */
+export async function textoDeTarea(ref: string): Promise<string> {
+  const [issue, comentarios, tarjetas] = await Promise.all([fetchIssue(ref), fetchComments(ref), fetchInteracciones(ref)]);
+  return componerTexto(issue, comentarios, tarjetas);
 }

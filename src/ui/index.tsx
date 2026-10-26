@@ -12,6 +12,7 @@ import { useLayoutEffect } from "react";
 import { useHostLocation, useHostNavigation, usePluginToast, type PluginSidebarProps } from "@paperclipai/plugin-sdk/ui";
 import { PAGE_ROUTE } from "../shared.js";
 import { useAjustes } from "./ajustes.js";
+import { BotonContextoBarra } from "./contextoBarra.js";
 import { asegurarEstilos } from "./estilos.js";
 import { BotonResumenArriba } from "./menuResumen.js";
 import { EVENTO_TV } from "./pagina.js";
@@ -23,7 +24,6 @@ import { useMarca, useVigia } from "./vigia.js";
 
 export { OficinaGlobalPage } from "./pagina.js";
 export { OficinaGlobalWidget } from "./widget.js";
-export { BotonContextoTarea } from "./botonContexto.js";
 
 function IconoOficina() {
   return (
@@ -88,6 +88,9 @@ export function OficinaGlobalSidebarLink(_props: PluginSidebarProps) {
  * 0.9.0 (JST-245 §1 y §4): en el celular, «Resumen» va antes de «Modo TV». Y
  * desde aquí se dibuja el reproductor del Resumen, en todas las páginas: sigue
  * sonando al abrir una tarea desde su chip.
+ *
+ * 0.9.6 (JST-276, design-spec de JST-282): en la página de una tarea, «🔊 Leer
+ * contexto» (computador y celular). Ya no va en la fila bajo el título.
  */
 export function OficinaTvBoton() {
   useLayoutEffect(() => asegurarEstilos(), []);
@@ -98,6 +101,7 @@ export function OficinaTvBoton() {
   return (
     <>
       <ReproductorResumen />
+      <BotonContextoBarra />
       {celular && enLaOficina ? (
         <>
           <BotonResumenArriba />

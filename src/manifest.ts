@@ -59,10 +59,13 @@ import { PAGE_ROUTE, PLUGIN_KEY } from "./shared.js";
 // La 0.9.0 (JST-245/246) tampoco: el Resumen lee lo terminado y las abiertas
 // de cada empresa con la sesión del usuario (solo al abrir su menú y al apretar
 // «Leer»), y su voz usa otra acción del worker (`voz-resumen`).
+//
+// La 0.9.6 (JST-276) tampoco: «Leer contexto» pasa de la fila bajo el título
+// (`toolbarButton`) a la barra de arriba, que ya dibujaba `OficinaTvBoton`.
 const manifest: PaperclipPluginManifestV1 = {
   id: PLUGIN_KEY,
   apiVersion: 1,
-  version: "0.9.5",
+  version: "0.9.6",
   displayName: "Oficina global",
   description: "Oficina pixel con los agentes de todas las empresas: quién trabaja, quién te necesita (hace fila frente a tu escritorio), con error, en pausa o libre. Responde tarjetas sin salir, con avisos y 9 voces. Caminan, se entregan las tareas en la mesa, conversan en el descanso (en Chrome, la IA de Chrome escribe cómo terminan) y las mascotas responden al clic. Un rótulo dice de qué se trata cada tarea. «Resumen» te lee lo que se hizo, lo que te toca, en qué trabajan y lo que está en cola.",
   author: "JSTM",
@@ -98,13 +101,6 @@ const manifest: PaperclipPluginManifestV1 = {
         id: "oficina-global-tv",
         displayName: "Modo TV",
         exportName: "OficinaTvBoton",
-      },
-      {
-        type: "toolbarButton",
-        id: "oficina-contexto-tarea",
-        displayName: "Leer contexto",
-        exportName: "BotonContextoTarea",
-        entityTypes: ["issue"],
       },
     ],
   },

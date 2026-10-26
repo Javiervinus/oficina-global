@@ -116,7 +116,7 @@ function Avance({ l, rm }: { l: Lector; rm: boolean }) {
 }
 
 /** El centro del reproductor: la parte y la frase que suena, o lo que pasa (§8). */
-function Centro({ l, conIa }: { l: Lector; conIa: boolean }): ReactNode {
+function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contextoLee: boolean }): ReactNode {
   if (l.fase === "armando") {
     return (
       <>
@@ -151,7 +151,7 @@ function Centro({ l, conIa }: { l: Lector; conIa: boolean }): ReactNode {
       <Icono nombre={ICONO_SECCION[S.sec]} tam={12} className={cx("of-rsa-si", `is-${S.sec}`)} />
       {NOMBRE_SECCION[S.sec]}
       {fr.length > 1 ? ` · ${l.pos.k + 1} de ${fr.length}` : ""}
-      {l.fase === "pausa" ? <span className="of-rsa-pz">En pausa</span> : null}
+      {l.fase === "pausa" ? <span className="of-rsa-pz">{contextoLee ? "En pausa · lees el contexto" : "En pausa"}</span> : null}
     </span>
   );
   const f = l.actual();
@@ -366,7 +366,7 @@ export function ReproductorResumen() {
               </>
             )}
             <div className="of-rsa-c" aria-live="polite">
-              <Centro l={l} conIa={r.conIa} />
+              <Centro l={l} conIa={r.conIa} contextoLee={r.contextoLee} />
             </div>
             {celular ? null : (
               <button type="button" className="of-btn is-sm is-ghost of-rsa-vel" title="Velocidad" onClick={() => l.cambiarVelocidad()}>

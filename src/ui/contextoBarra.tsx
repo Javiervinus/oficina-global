@@ -1,0 +1,256 @@
+// «🔊 Leer contexto» en la barra de arriba de Paperclip (JST-276, design-spec de
+// JST-282 rev 2, A · En la barra de arriba). Lo dibuja `OficinaTvBoton` (slot
+// `globalToolbarButton`), que está en todas las páginas y no se va al bajar: así
+// se ve donde sea que abra la tarea, también en la tarjeta pendiente de abajo.
+//
+// - Solo en la página de una tarea (`/{prefijo}/issues/{código o id}`).
+// - Computador: botón con texto (30 px, mínimo 132 de ancho, «Detener 2/5»).
+//   Celular (≤ 767 px): solo el ícono, 44 × 44.
+// - Se calla al cambiar de tarea o de página y al cerrar la pestaña (§6): la
+//   barra no se desmonta, así que se mira la ruta. Un ancla de la misma tarea no.
+// - Una voz a la vez con el Resumen (§7): ver `resumen.ts`.
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from "react";
+import { useHostLocation } from "@paperclipai/plugin-sdk/ui";
+import { textoDeTarea } from "./botonContexto.js";
+import { Capa } from "./capas.js";
+import { LectorContexto, msEscrita, tareaDeRuta, type EstadoContexto, type VozContexto } from "./contextoLector.js";
+import { cx, Icono } from "./piso.js";
+import { resumen } from "./resumen.js";
+import { vocesDisponibles } from "./sonido.js";
+import { useCelular, useMovimientoReducido } from "./useOficina.js";
+
+// ---------------------------------------------------------------------------
+// La voz del navegador
+// ---------------------------------------------------------------------------
+
+/** Chrome carga sus voces un rato después de abrir la página: si todavía no hay ninguna, se espera hasta `ms`. */
+function esperarVoces(ms: number): Promise<void> {
+  return new Promise((ok) => {
+    const s = window.speechSynthesis;
+    const listo = () => {
+      clearTimeout(t);
+      s.removeEventListener("voiceschanged", listo);
+      ok();
+    };
+    const t = setTimeout(listo, ms);
+    s.addEventListener("voiceschanged", listo);
+  });
+}
+
+/** Ya se esperó a las voces una vez: un navegador sin ninguna no hace esperar cada toque. */
+let yaSeEsperoVoces = false;
+
+const vozNavegador: VozContexto = {
+  async hayVoz() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+    if (vocesDisponibles().length > 0) return true;
+    // Recién abierto, Chrome puede tardar más de 1 s (el banco de JST-276 lo vio): hasta 2 s, solo la primera vez.
+    if (!yaSeEsperoVoces && window.speechSynthesis.getVoices().length === 0) await esperarVoces(2_000);
+    yaSeEsperoVoces = true;
+    return vocesDisponibles().length > 0;
+  },
+  decir(frase, alTerminar, primera) {
+    const synth = window.speechSynthesis;
+    const u = new SpeechSynthesisUtterance(frase);
+    const v = vocesDisponibles()[0];
+    if (v) {
+      u.voice = v;
+      u.lang = v.lang;
+    } else u.lang = "es-MX";
+    u.rate = 1.05;
+    let sonando = true;
+    const fin = (cortada: boolean) => {
+      if (!sonando) return;
+      sonando = false;
+      clearTimeout(tope);
+      alTerminar(cortada);
+    };
+    // Si el navegador no avisa que terminó (a veces Chrome se queda callado), sigue con la próxima.
+    const tope = setTimeout(() => fin(false), msEscrita(frase) * 3 + 5_000);
+    u.onend = () => fin(false);
+    // Otra voz (la Oficina o el Resumen con la voz del navegador) la cortó.
+    u.onerror = (e) => fin(e.error === "interrupted" || e.error === "canceled");
+    try {
+      // Al empezar, corta lo que el navegador estuviera diciendo; las frases que siguen van detrás de la anterior.
+      if (primera) synth.cancel();
+      synth.speak(u);
+    } catch {
+      setTimeout(() => fin(true), 0);
+    }
+    // Parar solo corta si esta frase sigue sonando: la voz del navegador es una sola para toda la pestaña (JST-277).
+    return () => {
+      if (!sonando) return;
+      sonando = false;
+      clearTimeout(tope);
+      try {
+        synth.cancel();
+      } catch {
+        // Ya no sonaba.
+      }
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Una por pestaña
+// ---------------------------------------------------------------------------
+
+export const contexto = new LectorContexto({
+  voz: vozNavegador,
+  programar: (fn, ms) => {
+    const t = setTimeout(fn, ms);
+    return () => clearTimeout(t);
+  },
+  antesDeLeer: () => resumen.pausarPorContexto(),
+  alActivo: (on) => resumen.fijarContextoLee(on),
+});
+
+if (typeof window !== "undefined") {
+  // ▶ del Resumen (o leerlo otra vez) mientras se lee el contexto: el contexto se detiene (§7).
+  resumen.alHablar(() => {
+    if (contexto.activo()) contexto.detener();
+  });
+  resumen.suscribir(() => {
+    if (contexto.activo() && resumen.lector?.activo()) contexto.detener();
+  });
+  window.addEventListener("pagehide", () => contexto.detener());
+  // Pedir la lista hace que Chrome empiece a cargar sus voces: al tocar el botón ya están.
+  try {
+    window.speechSynthesis?.getVoices();
+  } catch {
+    // Sin voces.
+  }
+  (window as unknown as { __oficinaContexto?: () => unknown }).__oficinaContexto = () => ({
+    estado: contexto.estado,
+    tarea: contexto.tarea,
+    frases: contexto.frases.slice(),
+    k: contexto.k,
+    sinVoz: contexto.sinVoz,
+  });
+}
+
+function useContexto(): LectorContexto {
+  useSyncExternalStore(contexto.suscribir, () => contexto.version);
+  return contexto;
+}
+
+// ---------------------------------------------------------------------------
+// El botón
+// ---------------------------------------------------------------------------
+
+const ICONO: Readonly<Record<EstadoContexto, string>> = { listo: "volume-2", cargando: "loader", leyendo: "x", fin: "check", error: "triangle-alert" };
+const TEXTO: Readonly<Record<EstadoContexto, string>> = { listo: "Leer contexto", cargando: "Leer contexto", leyendo: "Detener", fin: "Leído", error: "No se pudo" };
+const ARIA: Readonly<Record<EstadoContexto, string>> = {
+  listo: "Leer contexto de la tarea",
+  cargando: "Cargando el contexto de la tarea",
+  leyendo: "Detener lectura",
+  fin: "Leer contexto de la tarea",
+  error: "No se pudo cargar la tarea. Leer contexto otra vez",
+};
+const TITULO: Readonly<Record<EstadoContexto, string>> = { listo: "Leer contexto", cargando: "Cargando…", leyendo: "Detener", fin: "Leer contexto", error: "No se pudo cargar la tarea" };
+
+/**
+ * Dónde va lo que sale bajo el botón: en el computador, 10 px bajo él y a su borde derecho; en el celular, a lo
+ * ancho, 8 px bajo la barra. Se vuelve a medir con cada cambio de la lectura (`tic`), por si la barra se reacomoda.
+ */
+function useBajoBoton(boton: RefObject<HTMLElement | null>, activo: boolean, celular: boolean, tic: number): CSSProperties | null {
+  const [pos, setPos] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    if (!activo) return;
+    const medir = () => {
+      const r = boton.current?.getBoundingClientRect();
+      if (!r) return;
+      // La barra de Paperclip mide 48 px y el botón va centrado en ella. El ancho, sin la barra de scroll.
+      const ancho = document.documentElement.clientWidth || window.innerWidth;
+      const n: CSSProperties = celular ? { top: Math.round(r.top + r.height / 2 + 24 + 8), left: 8, right: 8 } : { top: Math.round(r.bottom + 10), right: Math.max(8, Math.round(ancho - r.right)) };
+      setPos((x) => (x && x.top === n.top && x.left === n.left && x.right === n.right ? x : n));
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [activo, celular, boton, tic]);
+  return activo ? pos : null;
+}
+
+/** Sin voz en español (§5): todas las frases escritas, con la que va marcada; sigue a la que va. */
+function PanelEscrito({ c, celular, estilo }: { c: LectorContexto; celular: boolean; estilo: CSSProperties }) {
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = caja.current;
+    const cur = el?.querySelector<HTMLElement>("p.is-cur");
+    if (!el || !cur) return;
+    const arriba = cur.offsetTop;
+    if (arriba < el.scrollTop + 40 || arriba + cur.offsetHeight > el.scrollTop + el.clientHeight - 8) el.scrollTop = Math.max(0, arriba - 48);
+  }, [c.k]);
+  return (
+    <Capa>
+      <div ref={caja} className={cx("of-ctx-esc", celular && "is-m")} style={estilo} role="region" aria-label="Contexto de la tarea, escrito">
+        <div className="of-ctx-eh">
+          <Icono nombre="volume-x" tam={14} />
+          <span>
+            <b>Este navegador no tiene voz en español.</b> Te lo dejo escrito.
+          </span>
+          <button type="button" className="of-ibtn is-ghost" aria-label="Detener lectura" title="Detener" onClick={() => c.detener()}>
+            <Icono nombre="x" tam={celular ? 18 : 14} />
+          </button>
+        </div>
+        {c.frases.map((f, i) => (
+          <p key={i} className={i === c.k ? "is-cur" : i > c.k ? "is-fut" : undefined} aria-current={i === c.k ? "true" : undefined}>
+            {f}
+          </p>
+        ))}
+      </div>
+    </Capa>
+  );
+}
+
+/** El botón de la barra de arriba; no dibuja nada fuera de la página de una tarea. */
+export function BotonContextoBarra() {
+  const location = useHostLocation();
+  const tarea = tareaDeRuta(location.pathname);
+  const celular = useCelular();
+  const rm = useMovimientoReducido();
+  const c = useContexto();
+  const boton = useRef<HTMLButtonElement>(null);
+  // Al ir a otra tarea o a otra página (o si el host quita la barra), se calla (§6).
+  useEffect(() => {
+    if (!tarea) return;
+    return () => contexto.detener();
+  }, [tarea]);
+  const propia = !!tarea && c.tarea === tarea;
+  const e: EstadoContexto = propia ? c.estado : "listo";
+  const escrito = propia && e === "leyendo" && c.sinVoz && c.frases.length > 0;
+  const aviso = propia && e === "error" && celular;
+  const bajo = useBajoBoton(boton, escrito || aviso, celular, c.version);
+  if (!tarea) return null;
+  const n = c.frases.length;
+  return (
+    <span className={cx("of-layer of-ctxw", rm && "of-rm")}>
+      <button
+        ref={boton}
+        type="button"
+        className={cx("of-ctx", `is-${e}`, celular && "is-m")}
+        aria-label={ARIA[e]}
+        title={TITULO[e]}
+        aria-busy={e === "cargando" ? true : undefined}
+        onClick={() => c.tocar(tarea, () => textoDeTarea(tarea))}
+      >
+        <Icono nombre={ICONO[e]} tam={celular ? 18 : 14} className={e === "cargando" ? "of-spin" : undefined} />
+        {celular ? null : <span className="of-ctx-t">{TEXTO[e]}</span>}
+        {!celular && e === "leyendo" && n > 0 ? <span className="of-ctx-n">{`${c.k + 1}/${n}`}</span> : null}
+      </button>
+      <span className="of-sr" role="status">
+        {e === "fin" ? "Leído" : e === "error" ? "No se pudo cargar la tarea" : ""}
+      </span>
+      {escrito && bajo ? <PanelEscrito c={c} celular={celular} estilo={bajo} /> : null}
+      {aviso && bajo ? (
+        <Capa>
+          <div className="of-ctx-toast" style={bajo}>
+            <Icono nombre="triangle-alert" tam={14} />
+            No se pudo cargar la tarea. Prueba otra vez.
+          </div>
+        </Capa>
+      ) : null}
+    </span>
+  );
+}
