@@ -139,6 +139,10 @@ El código está en `src/` (la lógica, sin React ni DOM, separada de `src/ui/`)
 - En iPhone no hay pantalla completa para una página: el modo TV explica cómo agregarla a la pantalla de inicio. No se probó en Safari ni en un iPhone real.
 - Edge TTS es un servicio no oficial: si Microsoft lo cambia, las voces de Lorenzo y Catalina dejan de generarse hasta actualizar `edge-tts`.
 
+## Contribuir y versiones
+
+Los pull requests son bienvenidos: ver [CONTRIBUTING.es.md](CONTRIBUTING.es.md). Cada pull request corre las pruebas, los tipos y el build en GitHub Actions. Cuando un mantenedor fusiona uno que sube la versión de `package.json`, GitHub Actions publica esa versión en npm por su cuenta, con [procedencia](https://docs.npmjs.com/generating-provenance-statements) (provenance), y crea su Release en GitHub. Nadie publica desde su computador.
+
 ## Licencia y atribuciones
 
 El código es de JSTM, con licencia [MIT](LICENSE). Los sprites y el sonido del aviso son propios (los arman los scripts de `src/ui/assets/fuente/`).
