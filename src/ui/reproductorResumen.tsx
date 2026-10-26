@@ -146,14 +146,15 @@ function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contexto
   const S = l.seccionActual();
   if (!S) return null;
   const fr = S.usadas ?? [];
-  // Si «En pausa · lees el contexto» no cabe junto al nombre de la parte (en el celular), baja entero a la línea de abajo (JST-291).
+  // En el celular, lo que no cabe en la línea baja entero a la de abajo: «k de N» (JST-295) y «En pausa · lees el
+  // contexto» (JST-291). El «·» antes de «k de N» lo pone el CSS y solo se ve en la misma línea que el nombre.
   const cabeza = (
     <span className="of-rsa-sec is-parte">
       <span className="of-rsa-sn">
         <Icono nombre={ICONO_SECCION[S.sec]} tam={12} className={cx("of-rsa-si", `is-${S.sec}`)} />
         {NOMBRE_SECCION[S.sec]}
-        {fr.length > 1 ? ` · ${l.pos.k + 1} de ${fr.length}` : ""}
       </span>
+      {fr.length > 1 ? <span className="of-rsa-k">{`${l.pos.k + 1} de ${fr.length}`}</span> : null}
       {l.fase === "pausa" ? <span className="of-rsa-pz">{contextoLee ? "En pausa · lees el contexto" : "En pausa"}</span> : null}
     </span>
   );

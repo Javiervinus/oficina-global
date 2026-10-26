@@ -100,6 +100,10 @@ export const CSS_RESUMEN = /* css */ `
 /* La parte y «En pausa»: en la misma línea (11 px entre los dos) y, si no caben, «En pausa» entero abajo, sin sangría (JST-291) */
 .of-rsa-sec.is-parte { flex-wrap: wrap; column-gap: 11px; row-gap: 3px; }
 .of-rsa-sn { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+/* «k de N» nunca se corta: si no cabe junto al nombre, baja entero (JST-295). Su «·» va en los 11 px entre los dos;
+   al bajar, queda a la izquierda del borde y la cabecera lo esconde (overflow), así la línea empieza con el número */
+.of-rsa-k { flex: none; margin-left: -11px; }
+.of-rsa-k::before { content: "·"; content: "·" / ""; display: inline-block; width: 11px; text-align: center; letter-spacing: 0; }
 .of-rsa-pz { padding: 0 6px; border-radius: 4px; background: var(--of-muted); color: var(--of-fg); letter-spacing: 0; text-transform: none; font-weight: 500; white-space: normal; }
 .of-rsa-sub { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--of-fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .of-rsa-sub .of-cotag { vertical-align: 1px; margin-right: 4px; }
