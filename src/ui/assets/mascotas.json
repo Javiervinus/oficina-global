@@ -1,0 +1,73 @@
+{
+ "imagen": "mascotas.png",
+ "cuadro": {
+  "ancho": 16,
+  "alto": 16
+ },
+ "columnas": 19,
+ "animaciones": {
+  "caminar-der": {
+   "desde": 0,
+   "cuadros": 4,
+   "ms": 130
+  },
+  "caminar-izq": {
+   "desde": 4,
+   "cuadros": 4,
+   "ms": 130
+  },
+  "quieto-der": {
+   "desde": 8,
+   "cuadros": 2,
+   "ms": 650
+  },
+  "quieto-izq": {
+   "desde": 10,
+   "cuadros": 2,
+   "ms": 650
+  },
+  "gesto-der": {
+   "desde": 12,
+   "cuadros": 2,
+   "ms": 320
+  },
+  "gesto-izq": {
+   "desde": 14,
+   "cuadros": 2,
+   "ms": 320
+  },
+  "dormir": {
+   "desde": 16,
+   "cuadros": 2,
+   "ms": 900
+  },
+  "cama": {
+   "desde": 18,
+   "cuadros": 1,
+   "ms": 0
+  }
+ },
+ "filas": [
+  {
+   "fila": 0,
+   "id": "gato",
+   "nombre": "Gato"
+  },
+  {
+   "fila": 1,
+   "id": "perro",
+   "nombre": "Perro"
+  },
+  {
+   "fila": 2,
+   "id": "conejo",
+   "nombre": "Conejo"
+  },
+  {
+   "fila": 3,
+   "id": "robot",
+   "nombre": "Robot aspiradora"
+  }
+ ],
+ "nota": "Cuadro (col, fila) = (animaciones[a].desde + i, filas[k].fila). Las -izq son el espejo de las -der. Patas o ruedas en la fila 15 y cuerpo centrado en x≈8: el pie de la mascota es (x+8, y+16) del cuadro. dormir se dibuja encima de cama, en la misma posición (cama va debajo). Todas en bucle. Escala entera con image-rendering: pixelated."
+}

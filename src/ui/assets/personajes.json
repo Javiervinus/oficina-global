@@ -1,0 +1,236 @@
+{
+ "imagen": "personajes.png",
+ "cuadro": {
+  "ancho": 16,
+  "alto": 24
+ },
+ "columnas": 44,
+ "animaciones": {
+  "teclear": {
+   "desde": 0,
+   "cuadros": 4,
+   "ms": 140
+  },
+  "mano": {
+   "desde": 4,
+   "cuadros": 2,
+   "ms": 420
+  },
+  "error": {
+   "desde": 6,
+   "cuadros": 2,
+   "ms": 160
+  },
+  "dormir": {
+   "desde": 8,
+   "cuadros": 2,
+   "ms": 900
+  },
+  "libre": {
+   "desde": 10,
+   "cuadros": 6,
+   "ms": 520
+  },
+  "sofa": {
+   "desde": 16,
+   "cuadros": 4,
+   "ms": 600
+  },
+  "caminar": {
+   "desde": 20,
+   "cuadros": 4,
+   "ms": 150
+  },
+  "sentado": {
+   "desde": 24,
+   "cuadros": 1,
+   "ms": 0
+  },
+  "parado": {
+   "desde": 25,
+   "cuadros": 1,
+   "ms": 0
+  },
+  "caminar-abajo": {
+   "desde": 20,
+   "cuadros": 4,
+   "ms": 150
+  },
+  "caminar-arriba": {
+   "desde": 26,
+   "cuadros": 4,
+   "ms": 150
+  },
+  "caminar-izq": {
+   "desde": 30,
+   "cuadros": 4,
+   "ms": 150
+  },
+  "caminar-der": {
+   "desde": 34,
+   "cuadros": 4,
+   "ms": 150
+  },
+  "charlar-izq": {
+   "desde": 38,
+   "cuadros": 2,
+   "ms": 280
+  },
+  "charlar-der": {
+   "desde": 40,
+   "cuadros": 2,
+   "ms": 280
+  },
+  "escuchar-izq": {
+   "desde": 42,
+   "cuadros": 1,
+   "ms": 0
+  },
+  "escuchar-der": {
+   "desde": 43,
+   "cuadros": 1,
+   "ms": 0
+  }
+ },
+ "filas": [
+  {
+   "fila": 0,
+   "id": "direccion-1",
+   "rol": "direccion",
+   "rolNombre": "Dirección"
+  },
+  {
+   "fila": 1,
+   "id": "direccion-2",
+   "rol": "direccion",
+   "rolNombre": "Dirección"
+  },
+  {
+   "fila": 2,
+   "id": "direccion-3",
+   "rol": "direccion",
+   "rolNombre": "Dirección"
+  },
+  {
+   "fila": 3,
+   "id": "direccion-4",
+   "rol": "direccion",
+   "rolNombre": "Dirección"
+  },
+  {
+   "fila": 4,
+   "id": "ingenieria-1",
+   "rol": "ingenieria",
+   "rolNombre": "Ingeniería"
+  },
+  {
+   "fila": 5,
+   "id": "ingenieria-2",
+   "rol": "ingenieria",
+   "rolNombre": "Ingeniería"
+  },
+  {
+   "fila": 6,
+   "id": "ingenieria-3",
+   "rol": "ingenieria",
+   "rolNombre": "Ingeniería"
+  },
+  {
+   "fila": 7,
+   "id": "ingenieria-4",
+   "rol": "ingenieria",
+   "rolNombre": "Ingeniería"
+  },
+  {
+   "fila": 8,
+   "id": "ingenieria-5",
+   "rol": "ingenieria",
+   "rolNombre": "Ingeniería"
+  },
+  {
+   "fila": 9,
+   "id": "diseno-1",
+   "rol": "diseno",
+   "rolNombre": "Diseño"
+  },
+  {
+   "fila": 10,
+   "id": "diseno-2",
+   "rol": "diseno",
+   "rolNombre": "Diseño"
+  },
+  {
+   "fila": 11,
+   "id": "diseno-3",
+   "rol": "diseno",
+   "rolNombre": "Diseño"
+  },
+  {
+   "fila": 12,
+   "id": "qa-1",
+   "rol": "qa",
+   "rolNombre": "QA"
+  },
+  {
+   "fila": 13,
+   "id": "qa-2",
+   "rol": "qa",
+   "rolNombre": "QA"
+  },
+  {
+   "fila": 14,
+   "id": "qa-3",
+   "rol": "qa",
+   "rolNombre": "QA"
+  },
+  {
+   "fila": 15,
+   "id": "revisor-1",
+   "rol": "revisor",
+   "rolNombre": "Revisión de código"
+  },
+  {
+   "fila": 16,
+   "id": "revisor-2",
+   "rol": "revisor",
+   "rolNombre": "Revisión de código"
+  },
+  {
+   "fila": 17,
+   "id": "revisor-3",
+   "rol": "revisor",
+   "rolNombre": "Revisión de código"
+  },
+  {
+   "fila": 18,
+   "id": "docs-1",
+   "rol": "docs",
+   "rolNombre": "Documentación"
+  },
+  {
+   "fila": 19,
+   "id": "marketing-1",
+   "rol": "marketing",
+   "rolNombre": "Marketing"
+  },
+  {
+   "fila": 20,
+   "id": "contenido-1",
+   "rol": "contenido",
+   "rolNombre": "Contenido"
+  },
+  {
+   "fila": 21,
+   "id": "specs-1",
+   "rol": "specs",
+   "rolNombre": "Especificaciones"
+  },
+  {
+   "fila": 22,
+   "id": "hermes-1",
+   "rol": "hermes",
+   "rolNombre": "Hermes"
+  }
+ ],
+ "nota": "Cuadro (col, fila) = (animaciones[a].desde + i, filas[k].fila). Escala entera (1x, 2x, 3x) con image-rendering: pixelated. Caminar en 4 direcciones (JST-96): caminar-abajo (= caminar, de frente), caminar-arriba (de espalda), caminar-izq y caminar-der (de perfil; izq es el espejo exacto de der). charlar-* y escuchar-*: de pie de perfil con la taza, para las conversaciones en la sala de descanso. Los pies tocan la fila 22 en todas las poses de pie."
+}

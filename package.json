@@ -1,0 +1,55 @@
+{
+  "name": "paperclip-plugin-oficina-global",
+  "version": "0.9.5",
+  "type": "module",
+  "description": "Oficina pixel con los agentes de todas las empresas de tu instancia de Paperclip: quién trabaja, quién te necesita, con error, en pausa o libre. Responde tarjetas sin salir, con avisos y voces, modo TV y un resumen leído en voz alta.",
+  "scripts": {
+    "build": "node ./esbuild.config.mjs",
+    "test": "vitest run --config ./vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "voces": "node ./dist/generar_voces.mjs"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js",
+    "ui": "./dist/ui/"
+  },
+  "keywords": [
+    "paperclip",
+    "paperclip-plugin",
+    "pixel-art",
+    "office",
+    "ai-agents",
+    "text-to-speech"
+  ],
+  "author": "JSTM",
+  "license": "MIT",
+  "devDependencies": {
+    "@paperclipai/plugin-sdk": "2026.824.1",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.17",
+    "esbuild": "^0.27.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "files": [
+    "dist",
+    "generador/*.py",
+    "generador/referencias",
+    "README.es.md",
+    "AVISOS.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jstm-co/oficina-global.git"
+  },
+  "homepage": "https://github.com/jstm-co/oficina-global#readme",
+  "bugs": {
+    "url": "https://github.com/jstm-co/oficina-global/issues"
+  }
+}

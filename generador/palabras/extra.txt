@@ -1,0 +1,19 @@
+# Palabras que la IA puede decir y que no están entre las 100.000 de los
+# subtítulos (o que el corrector de macOS no conoce): las de Chile que le pide el
+# prompt («bacán», «harta pega»), diminutivos del descanso e interjecciones.
+# Una o varias por línea; `#` empieza un comentario. Después de cambiar este
+# archivo, vuelve a armar `src/ia/palabrasFiltro.ts` (README, «Palabras de la IA»).
+
+# De Chile
+bacán bacanes bacana bacanas fome fomes cachai cachái cacha cachó cachamos
+po pucha choro chora choros choras pulento pulenta pulentos pulentas
+cuático cuática cuáticos cuáticas pololo polola pololos pololas
+luca lucas refri carrete carretes carretear tecito tecitos
+harto harta hartos hartas pega pegas pegota caleta igual nomás
+
+# Diminutivos del descanso
+cafecito cafecitos ratito ratitos sofacito siestita siestitas descansito
+galletita galletitas tacita tacitas sillita poquito poquitito momentito
+
+# Interjecciones y risas
+uf uff ufff uy ay ups oh ah eh je jeje ja jaja jajaja mmm bla ok okey

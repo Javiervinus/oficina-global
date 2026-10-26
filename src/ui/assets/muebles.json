@@ -1,0 +1,440 @@
+{
+ "imagen": "muebles.png",
+ "ancho": 256,
+ "alto": 153,
+ "piezas": {
+  "escritorio": {
+   "x": 0,
+   "y": 0,
+   "w": 28,
+   "h": 20
+  },
+  "silla-bet": {
+   "x": 29,
+   "y": 0,
+   "w": 14,
+   "h": 14
+  },
+  "silla-elm": {
+   "x": 44,
+   "y": 0,
+   "w": 14,
+   "h": 14
+  },
+  "silla-jst": {
+   "x": 59,
+   "y": 0,
+   "w": 14,
+   "h": 14
+  },
+  "silla-mig": {
+   "x": 74,
+   "y": 0,
+   "w": 14,
+   "h": 14
+  },
+  "pantalla-apagada-0": {
+   "x": 89,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-codigo-0": {
+   "x": 98,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-codigo-1": {
+   "x": 107,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-codigo-2": {
+   "x": 116,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-codigo-3": {
+   "x": 125,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-codigo-4": {
+   "x": 134,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-error-0": {
+   "x": 143,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-error-1": {
+   "x": 152,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-espera-0": {
+   "x": 161,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-espera-1": {
+   "x": 170,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "pantalla-dormida-0": {
+   "x": 179,
+   "y": 0,
+   "w": 8,
+   "h": 5
+  },
+  "sofa": {
+   "x": 188,
+   "y": 0,
+   "w": 34,
+   "h": 15
+  },
+  "sofa-calido": {
+   "x": 0,
+   "y": 21,
+   "w": 34,
+   "h": 15
+  },
+  "cafetera": {
+   "x": 35,
+   "y": 21,
+   "w": 20,
+   "h": 24
+  },
+  "planta": {
+   "x": 56,
+   "y": 21,
+   "w": 12,
+   "h": 18
+  },
+  "planta-grande": {
+   "x": 69,
+   "y": 21,
+   "w": 14,
+   "h": 24
+  },
+  "dispensador": {
+   "x": 84,
+   "y": 21,
+   "w": 10,
+   "h": 24
+  },
+  "mesita": {
+   "x": 95,
+   "y": 21,
+   "w": 18,
+   "h": 10
+  },
+  "estante": {
+   "x": 114,
+   "y": 21,
+   "w": 22,
+   "h": 26
+  },
+  "pizarra": {
+   "x": 137,
+   "y": 21,
+   "w": 26,
+   "h": 16
+  },
+  "ventana-dia": {
+   "x": 164,
+   "y": 21,
+   "w": 24,
+   "h": 16
+  },
+  "ventana-noche": {
+   "x": 189,
+   "y": 21,
+   "w": 24,
+   "h": 16
+  },
+  "reloj": {
+   "x": 214,
+   "y": 21,
+   "w": 9,
+   "h": 9
+  },
+  "cuadro-bet": {
+   "x": 224,
+   "y": 21,
+   "w": 12,
+   "h": 10
+  },
+  "cuadro-elm": {
+   "x": 237,
+   "y": 21,
+   "w": 12,
+   "h": 10
+  },
+  "cuadro-jst": {
+   "x": 0,
+   "y": 48,
+   "w": 12,
+   "h": 10
+  },
+  "cuadro-mig": {
+   "x": 13,
+   "y": 48,
+   "w": 12,
+   "h": 10
+  },
+  "puff": {
+   "x": 26,
+   "y": 48,
+   "w": 14,
+   "h": 10
+  },
+  "puff-2": {
+   "x": 41,
+   "y": 48,
+   "w": 14,
+   "h": 10
+  },
+  "lampara": {
+   "x": 56,
+   "y": 48,
+   "w": 10,
+   "h": 24
+  },
+  "ascensor": {
+   "x": 67,
+   "y": 48,
+   "w": 20,
+   "h": 30
+  },
+  "alfombra-sala": {
+   "x": 88,
+   "y": 48,
+   "w": 60,
+   "h": 30
+  },
+  "alfombra-sala-2": {
+   "x": 149,
+   "y": 48,
+   "w": 60,
+   "h": 30
+  },
+  "pingpong": {
+   "x": 210,
+   "y": 48,
+   "w": 40,
+   "h": 24
+  },
+  "arcade": {
+   "x": 0,
+   "y": 79,
+   "w": 16,
+   "h": 28
+  },
+  "piso-madera-claro": {
+   "x": 17,
+   "y": 79,
+   "w": 32,
+   "h": 16
+  },
+  "piso-baldosa-claro": {
+   "x": 50,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "losa-claro": {
+   "x": 67,
+   "y": 79,
+   "w": 16,
+   "h": 8
+  },
+  "ladrillo-claro": {
+   "x": 84,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-bet-claro": {
+   "x": 101,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "pared-bet-claro": {
+   "x": 118,
+   "y": 79,
+   "w": 16,
+   "h": 22
+  },
+  "papel-bet-claro": {
+   "x": 135,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-elm-claro": {
+   "x": 152,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "pared-elm-claro": {
+   "x": 169,
+   "y": 79,
+   "w": 16,
+   "h": 22
+  },
+  "papel-elm-claro": {
+   "x": 186,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-jst-claro": {
+   "x": 203,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "pared-jst-claro": {
+   "x": 220,
+   "y": 79,
+   "w": 16,
+   "h": 22
+  },
+  "papel-jst-claro": {
+   "x": 237,
+   "y": 79,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-mig-claro": {
+   "x": 0,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "pared-mig-claro": {
+   "x": 17,
+   "y": 108,
+   "w": 16,
+   "h": 22
+  },
+  "papel-mig-claro": {
+   "x": 34,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "piso-madera-oscuro": {
+   "x": 51,
+   "y": 108,
+   "w": 32,
+   "h": 16
+  },
+  "piso-baldosa-oscuro": {
+   "x": 84,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "losa-oscuro": {
+   "x": 101,
+   "y": 108,
+   "w": 16,
+   "h": 8
+  },
+  "ladrillo-oscuro": {
+   "x": 118,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-bet-oscuro": {
+   "x": 135,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "pared-bet-oscuro": {
+   "x": 152,
+   "y": 108,
+   "w": 16,
+   "h": 22
+  },
+  "papel-bet-oscuro": {
+   "x": 169,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-elm-oscuro": {
+   "x": 186,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "pared-elm-oscuro": {
+   "x": 203,
+   "y": 108,
+   "w": 16,
+   "h": 22
+  },
+  "papel-elm-oscuro": {
+   "x": 220,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-jst-oscuro": {
+   "x": 237,
+   "y": 108,
+   "w": 16,
+   "h": 16
+  },
+  "pared-jst-oscuro": {
+   "x": 0,
+   "y": 131,
+   "w": 16,
+   "h": 22
+  },
+  "papel-jst-oscuro": {
+   "x": 17,
+   "y": 131,
+   "w": 16,
+   "h": 16
+  },
+  "alfombra-mig-oscuro": {
+   "x": 34,
+   "y": 131,
+   "w": 16,
+   "h": 16
+  },
+  "pared-mig-oscuro": {
+   "x": 51,
+   "y": 131,
+   "w": 16,
+   "h": 22
+  },
+  "papel-mig-oscuro": {
+   "x": 68,
+   "y": 131,
+   "w": 16,
+   "h": 16
+  }
+ },
+ "nota": "escritorio: pantalla en (2,1) 8x5; el personaje va en (10,-8) respecto del escritorio y la silla en (11,-3) detrás del personaje."
+}

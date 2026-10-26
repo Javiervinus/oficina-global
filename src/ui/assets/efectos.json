@@ -1,0 +1,62 @@
+{
+ "imagen": "efectos.png",
+ "cuadro": {
+  "ancho": 16,
+  "alto": 16
+ },
+ "animaciones": {
+  "zz": {
+   "desde": 0,
+   "cuadros": 3,
+   "ms": 700
+  },
+  "alerta": {
+   "desde": 3,
+   "cuadros": 2,
+   "ms": 450
+  },
+  "humo": {
+   "desde": 5,
+   "cuadros": 3,
+   "ms": 260
+  },
+  "vapor": {
+   "desde": 8,
+   "cuadros": 3,
+   "ms": 380
+  },
+  "aviso": {
+   "desde": 11,
+   "cuadros": 2,
+   "ms": 520
+  },
+  "sobre-vuela": {
+   "desde": 13,
+   "cuadros": 4,
+   "ms": 110
+  },
+  "sobre-llega": {
+   "desde": 17,
+   "cuadros": 3,
+   "ms": 90,
+   "bucle": false
+  },
+  "sobre-quieto": {
+   "desde": 20,
+   "cuadros": 1,
+   "ms": 0
+  },
+  "sobre-abre": {
+   "desde": 21,
+   "cuadros": 2,
+   "ms": 160,
+   "bucle": false
+  },
+  "charla": {
+   "desde": 23,
+   "cuadros": 3,
+   "ms": 300
+  }
+ },
+ "nota": "Columnas 0–12 sin cambios desde JST-65. Nuevas en la 0.3.0: sobre-vuela, sobre-llega, sobre-quieto, sobre-abre y charla. Las que llevan \"bucle\": false se muestran una vez y quedan en el último cuadro."
+}
