@@ -1,0 +1,93 @@
+# Publishes to npm when a pull request that bumps the version is merged into main.
+# No npm token: npm trusts this workflow (trusted publishing, OIDC) and adds provenance.
+# If the version in package.json is already on npm, it does nothing.
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && github.repository == 'jstm-co/oficina-global'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write # tag and GitHub Release
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Version to publish
+        id: v
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          published=$(curl -fsS "https://registry.npmjs.org/$name" | node -e '
+            let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+              console.log(Object.keys(JSON.parse(s).versions || {}).includes(process.argv[1]) ? "yes" : "no");
+            });' "$version")
+          if [ "$published" = "yes" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "**$name@$version** is already on npm: nothing to publish. / Ya está en npm: no se publica nada." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.v.outputs.publish == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: npm with trusted publishing (>= 11.5.1)
+        if: steps.v.outputs.publish == 'true'
+        run: |
+          if ! node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$(npm --version)"; then
+            npm install -g npm@latest
+          fi
+          npm --version
+
+      - if: steps.v.outputs.publish == 'true'
+        run: npm ci
+      - if: steps.v.outputs.publish == 'true'
+        run: npm run typecheck
+      - if: steps.v.outputs.publish == 'true'
+        run: npm test
+      - if: steps.v.outputs.publish == 'true'
+        run: npm run build
+      - if: steps.v.outputs.publish == 'true'
+        name: Package contents
+        run: node .github/scripts/check-package.mjs
+
+      - name: Publish
+        if: steps.v.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          case "$VERSION" in
+            *-*) npm publish --access public --tag next ;;
+            *) npm publish --access public ;;
+          esac
+          echo "Published **${{ steps.v.outputs.name }}@$VERSION** to npm. / Publicado en npm." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag and GitHub Release
+        if: steps.v.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes $prerelease

@@ -141,6 +141,10 @@ The code is in `src/` (the logic, without React or the DOM, kept apart from `src
 - iPhone has no full screen for web pages: TV mode explains how to add it to the home screen. It was not tested in Safari or on a real iPhone.
 - Edge TTS is an unofficial service: if Microsoft changes it, the Lorenzo and Catalina voices stop generating until `edge-tts` is updated.
 
+## Contributing and releases
+
+Pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Every pull request runs the tests, the type check and the build on GitHub Actions. When a maintainer merges one that bumps the version in `package.json`, GitHub Actions publishes that version to npm by itself, with [provenance](https://docs.npmjs.com/generating-provenance-statements), and creates its GitHub Release. Nobody publishes from their own computer.
+
 ## License and attributions
 
 The code is by JSTM, under the [MIT](LICENSE) license. The sprites and the notification sound are original (built by the scripts in `src/ui/assets/fuente/`).
