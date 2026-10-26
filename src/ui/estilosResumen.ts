@@ -100,6 +100,8 @@ export const CSS_RESUMEN = /* css */ `
 /* La parte y «En pausa»: en la misma línea (11 px entre los dos) y, si no caben, «En pausa» entero abajo, sin sangría (JST-291) */
 .of-rsa-sec.is-parte { flex-wrap: wrap; column-gap: 11px; row-gap: 3px; }
 .of-rsa-sn { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+/* El texto de la cabecera, si no cabe ni solo en su línea, termina en «…» en vez de cortarse a media letra (JST-299) */
+.of-rsa-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* «k de N» nunca se corta: si no cabe junto al nombre, baja entero (JST-295). Su «·» va en los 11 px entre los dos;
    al bajar, queda a la izquierda del borde y la cabecera lo esconde (overflow), así la línea empieza con el número */
 .of-rsa-k { flex: none; margin-left: -11px; }
@@ -162,6 +164,9 @@ export const CSS_RESUMEN = /* css */ `
 
 /* Mientras está el reproductor, el piso se puede bajar 128 px más (§4) */
 .of.of-rs-on .of-scroll { padding-bottom: 144px; }
+/* Y en las páginas de Paperclip, lo justo para que lo último (en una tarea, el cuadro de comentario) quede 8 px arriba
+   del reproductor (JST-298); el alto lo mide el reproductor (huecoAbajo) */
+html[data-of-rs-hueco] #main-content::after { content: ""; display: block; height: var(--of-rs-hueco, 0px); }
 
 /* El anillo del agente del que se habla (§6); la regla con su id la pone resumen.ts */
 @keyframes of-rs-anillo { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }

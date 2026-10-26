@@ -51,6 +51,46 @@ function useArea(activo: boolean): { left: number; width: number; piso: boolean 
   return a;
 }
 
+/**
+ * Cuánto más se puede bajar una página de Paperclip mientras está el reproductor (JST-298): lo justo para que lo último
+ * de la página (en una tarea, el cuadro de comentario) quede 8 px arriba de él, como el piso de la Oficina (§4).
+ * `arriba` es el borde de arriba del reproductor (sin «Texto») y `pie`, el espacio que la página ya deja abajo.
+ */
+export function huecoAbajo(altoVentana: number, arriba: number, pie: number): number {
+  return Math.max(0, Math.ceil(altoVentana - arriba + 8 - pie));
+}
+
+const HUECO = "data-of-rs-hueco";
+
+/** Mientras `activo`, el `main` de Paperclip gana abajo el hueco de `huecoAbajo` (un `::after`, ver estilosResumen.ts). */
+function useHuecoAbajo(caja: { current: HTMLDivElement | null }, activo: boolean): void {
+  useLayoutEffect(() => {
+    if (!activo) return;
+    const raiz = document.documentElement;
+    const medir = () => {
+      const main = document.getElementById("main-content");
+      const el = caja.current;
+      // Con `offsetTop` (desde `.of-rs-a`, que es fijo) y no con la caja en pantalla: la barra entra con un `translateY`.
+      const partes = Array.from(el?.querySelectorAll<HTMLElement>(".of-rsa-dock > :not(.of-rsa-texto)") ?? []);
+      if (!main || !el || !partes.length) return raiz.removeAttribute(HUECO);
+      const arriba = el.getBoundingClientRect().top + Math.min(...partes.map((p) => p.offsetTop));
+      const pie = parseFloat(getComputedStyle(main).paddingBottom) || 0;
+      raiz.style.setProperty("--of-rs-hueco", `${huecoAbajo(window.innerHeight, arriba, pie)}px`);
+      raiz.setAttribute(HUECO, "");
+    };
+    medir();
+    const obs = new ResizeObserver(medir);
+    if (caja.current) obs.observe(caja.current);
+    window.addEventListener("resize", medir);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("resize", medir);
+      raiz.removeAttribute(HUECO);
+      raiz.style.removeProperty("--of-rs-hueco");
+    };
+  }, [activo, caja]);
+}
+
 /** El chip de una tarea (§4): abre la tarea en la misma pestaña y la lectura sigue. */
 function ChipTarea({ prefijo, tid }: { prefijo: string | null | undefined; tid: string }) {
   const navigation = useHostNavigation();
@@ -122,7 +162,7 @@ function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contexto
       <>
         <span className="of-rsa-sec">
           <Icono nombre="loader" tam={12} className="of-rs-spin" />
-          Armando el resumen…
+          <span className="of-rsa-nom">Armando el resumen…</span>
         </span>
         <span className="of-rsa-sub">
           <span className="of-rs-sk" style={{ width: "78%" }} />
@@ -137,7 +177,7 @@ function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contexto
       <>
         <span className="of-rsa-sec">
           <Icono nombre="check" tam={12} />
-          Listo · {mmss(l.duracionTotal())}
+          <span className="of-rsa-nom">Listo · {mmss(l.duracionTotal())}</span>
         </span>
         {ultima ? <span className="of-rsa-sub is-fin">{ultima.texto}</span> : null}
       </>
@@ -148,11 +188,12 @@ function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contexto
   const fr = S.usadas ?? [];
   // En el celular, lo que no cabe en la línea baja entero a la de abajo: «k de N» (JST-295) y «En pausa · lees el
   // contexto» (JST-291). El «·» antes de «k de N» lo pone el CSS y solo se ve en la misma línea que el nombre.
+  // El nombre, si no cabe ni solo en su línea (el computador angosto, a 320 px), termina en «…» (JST-299).
   const cabeza = (
     <span className="of-rsa-sec is-parte">
       <span className="of-rsa-sn">
         <Icono nombre={ICONO_SECCION[S.sec]} tam={12} className={cx("of-rsa-si", `is-${S.sec}`)} />
-        {NOMBRE_SECCION[S.sec]}
+        <span className="of-rsa-nom">{NOMBRE_SECCION[S.sec]}</span>
       </span>
       {fr.length > 1 ? <span className="of-rsa-k">{`${l.pos.k + 1} de ${fr.length}`}</span> : null}
       {l.fase === "pausa" ? <span className="of-rsa-pz">{contextoLee ? "En pausa · lees el contexto" : "En pausa"}</span> : null}
@@ -293,6 +334,8 @@ export function ReproductorResumen() {
   const celular = useCelular();
   const rm = useMovimientoReducido();
   const area = useArea(visible);
+  const caja = useRef<HTMLDivElement>(null);
+  useHuecoAbajo(caja, visible && !!area && !area.piso);
   const play = useRef<HTMLButtonElement>(null);
   const armado = r.armadoEn;
   // Al abrir el reproductor, el foco va al ▶ (§10).
@@ -330,7 +373,7 @@ export function ReproductorResumen() {
   const estilo: CSSProperties | undefined = !celular && area ? { left: area.left, width: area.width } : !celular ? { left: 0, right: 0 } : undefined;
   return (
     <Capa>
-      <div className={cx("of-rs-a", celular && "is-m", area?.piso && "is-piso", rm && "of-rm")} style={estilo} onKeyDown={teclas}>
+      <div ref={caja} className={cx("of-rs-a", celular && "is-m", area?.piso && "is-piso", rm && "of-rm")} style={estilo} onKeyDown={teclas}>
         <div className="of-rsa-dock">
           {r.texto ? <PanelTexto l={l} /> : null}
           {r.voz?.sinVoces && !fin ? (
