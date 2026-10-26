@@ -97,7 +97,10 @@ export const CSS_RESUMEN = /* css */ `
 .of-rsa-c { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 0 8px 0 6px; }
 .of-rsa-sec { display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--of-muted-fg); white-space: nowrap; overflow: hidden; }
 .of-rsa-si.is-toca { color: var(--of-s-toca); } .of-rsa-si.is-hecho { color: var(--of-st-done); } .of-rsa-si.is-trabajan { color: var(--of-s-trabaja); } .of-rsa-si.is-cola { color: var(--of-st-todo); }
-.of-rsa-pz { margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--of-muted); color: var(--of-fg); letter-spacing: 0; text-transform: none; font-weight: 500; }
+/* La parte y «En pausa»: en la misma línea (11 px entre los dos) y, si no caben, «En pausa» entero abajo, sin sangría (JST-291) */
+.of-rsa-sec.is-parte { flex-wrap: wrap; column-gap: 11px; row-gap: 3px; }
+.of-rsa-sn { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+.of-rsa-pz { padding: 0 6px; border-radius: 4px; background: var(--of-muted); color: var(--of-fg); letter-spacing: 0; text-transform: none; font-weight: 500; white-space: normal; }
 .of-rsa-sub { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--of-fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .of-rsa-sub .of-cotag { vertical-align: 1px; margin-right: 4px; }
 .of-rsa-sub.is-mut { color: var(--of-muted-fg); font-weight: 400; display: flex; align-items: center; gap: 6px; }

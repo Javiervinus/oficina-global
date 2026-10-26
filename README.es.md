@@ -4,7 +4,7 @@
 
 Plugin para [Paperclip](https://github.com/paperclipai/paperclip) que dibuja a los agentes de **todas las empresas** de tu instancia en una oficina pixel: quién trabaja, quién te necesita, quién tiene un error, quién está en pausa y quién está libre. Puedes responder sus preguntas sin salir de la oficina, recibir avisos con voz y dejarla en un TV.
 
-- Clave del plugin: `jstm.oficina-pixel` · paquete npm: `paperclip-plugin-oficina-global` · versión `0.9.5`
+- Clave del plugin: `jstm.oficina-pixel` · paquete npm: `paperclip-plugin-oficina-global` · versión `0.9.7`
 - Probado con Paperclip `2026.824.1`.
 
 ## Qué hace
