@@ -62,8 +62,15 @@ export function huecoAbajo(altoVentana: number, arriba: number, pie: number): nu
 
 const HUECO = "data-of-rs-hueco";
 
-/** Mientras `activo`, el `main` de Paperclip gana abajo el hueco de `huecoAbajo` (un `::after`, ver estilosResumen.ts). */
-function useHuecoAbajo(caja: { current: HTMLDivElement | null }, activo: boolean): void {
+/** Lo que el `.of-scroll` del piso ya deja abajo (su `padding-bottom` de 16 px), que cuenta como pie en `huecoAbajo`. */
+const PIE_PISO = 16;
+
+/**
+ * Mientras `activo`, el `main` de Paperclip gana abajo el hueco de `huecoAbajo` (un `::after`, ver estilosResumen.ts).
+ * En el piso de la Oficina el hueco va en el `padding-bottom` del `.of-scroll` (`--of-rs-piso`, JST-314): con la caja de
+ * dos filas (hasta 151 px) los 128 px fijos de antes quedan cortos.
+ */
+function useHuecoAbajo(caja: { current: HTMLDivElement | null }, activo: boolean, piso: boolean): void {
   useLayoutEffect(() => {
     if (!activo) return;
     const raiz = document.documentElement;
@@ -75,6 +82,7 @@ function useHuecoAbajo(caja: { current: HTMLDivElement | null }, activo: boolean
       if (!main || !el || !partes.length) return raiz.removeAttribute(HUECO);
       const arriba = el.getBoundingClientRect().top + Math.min(...partes.map((p) => p.offsetTop));
       const pie = parseFloat(getComputedStyle(main).paddingBottom) || 0;
+      if (piso) return void raiz.style.setProperty("--of-rs-piso", `${huecoAbajo(window.innerHeight, arriba, pie + PIE_PISO)}px`);
       raiz.style.setProperty("--of-rs-hueco", `${huecoAbajo(window.innerHeight, arriba, pie)}px`);
       raiz.setAttribute(HUECO, "");
     };
@@ -87,8 +95,9 @@ function useHuecoAbajo(caja: { current: HTMLDivElement | null }, activo: boolean
       window.removeEventListener("resize", medir);
       raiz.removeAttribute(HUECO);
       raiz.style.removeProperty("--of-rs-hueco");
+      raiz.style.removeProperty("--of-rs-piso");
     };
-  }, [activo, caja]);
+  }, [activo, caja, piso]);
 }
 
 /** El chip de una tarea (§4): abre la tarea en la misma pestaña y la lectura sigue. */
@@ -335,7 +344,7 @@ export function ReproductorResumen() {
   const rm = useMovimientoReducido();
   const area = useArea(visible);
   const caja = useRef<HTMLDivElement>(null);
-  useHuecoAbajo(caja, visible && !!area && !area.piso);
+  useHuecoAbajo(caja, visible && !!area, !!area?.piso);
   const play = useRef<HTMLButtonElement>(null);
   const armado = r.armadoEn;
   // Al abrir el reproductor, el foco va al ▶ (§10).
@@ -404,10 +413,10 @@ export function ReproductorResumen() {
             )}
             {celular ? null : (
               <>
-                <button type="button" className="of-ibtn is-ghost of-rs-fill" aria-label="Parte anterior" title="Parte anterior (←)" disabled={fin || (l.pos.s === 0 && l.pos.k === 0)} onClick={() => l.saltar(-1)}>
+                <button type="button" className="of-ibtn is-ghost of-rs-fill of-rsa-prev" aria-label="Parte anterior" title="Parte anterior (←)" disabled={fin || (l.pos.s === 0 && l.pos.k === 0)} onClick={() => l.saltar(-1)}>
                   <Icono nombre="skip-back" tam={14} />
                 </button>
-                <button type="button" className="of-ibtn is-ghost of-rs-fill" aria-label="Parte siguiente" title="Parte siguiente (→)" disabled={fin} onClick={() => l.saltar(1)}>
+                <button type="button" className="of-ibtn is-ghost of-rs-fill of-rsa-next" aria-label="Parte siguiente" title="Parte siguiente (→)" disabled={fin} onClick={() => l.saltar(1)}>
                   <Icono nombre="skip-forward" tam={14} />
                 </button>
               </>
@@ -421,16 +430,16 @@ export function ReproductorResumen() {
               </button>
             )}
             {celular ? (
-              <button type="button" className={cx("of-ibtn is-ghost", r.texto && "is-on")} aria-pressed={r.texto} aria-label="Texto" title="Texto" onClick={() => r.alternarTexto()}>
+              <button type="button" className={cx("of-ibtn is-ghost of-rsa-txt", r.texto && "is-on")} aria-pressed={r.texto} aria-label="Texto" title="Texto" onClick={() => r.alternarTexto()}>
                 <Icono nombre="text" tam={18} />
               </button>
             ) : (
-              <button type="button" className={cx("of-btn is-sm", !r.texto && "is-ghost", r.texto && "is-on")} aria-pressed={r.texto} onClick={() => r.alternarTexto()}>
+              <button type="button" className={cx("of-btn is-sm of-rsa-txt", !r.texto && "is-ghost", r.texto && "is-on")} aria-pressed={r.texto} onClick={() => r.alternarTexto()}>
                 <Icono nombre="text" tam={14} />
                 Texto
               </button>
             )}
-            <button type="button" className="of-ibtn is-ghost" aria-label="Cerrar el resumen" title="Cerrar" onClick={() => r.cerrar()}>
+            <button type="button" className="of-ibtn is-ghost of-rsa-x" aria-label="Cerrar el resumen" title="Cerrar" onClick={() => r.cerrar()}>
               <Icono nombre="x" tam={celular ? 18 : 14} />
             </button>
           </div>

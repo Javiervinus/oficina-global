@@ -91,6 +91,8 @@ export const CSS_RESUMEN = /* css */ `
 .of-rsa-play svg.of-i { width: 16px; height: 16px; }
 .of-rsa-play:hover { filter: brightness(1.08); }
 .of-rs-fill svg.of-i, svg.of-i.of-rs-fill { fill: currentColor; }
+/* El arco del \`loader\` no se rellena: sin esto el ▶ de «Armando» y «Esperando» sale como un círculo (JST-314) */
+.of-rs-fill svg.of-i.of-rs-spin { fill: none; }
 .of-rsa-play:focus-visible, .of-rsa-bar .of-ibtn:focus-visible, .of-rsa-bar .of-btn:focus-visible, .of-rs-tid:focus-visible { outline: 2px solid var(--of-ring); outline-offset: 2px; }
 .of-rsa-bar .of-ibtn { width: 32px; height: 32px; flex: none; }
 .of-rsa-bar .of-ibtn:disabled { opacity: .35; cursor: default; }
@@ -162,8 +164,21 @@ export const CSS_RESUMEN = /* css */ `
 .of-rs-a.is-m .of-rsa-texto { max-height: 52vh; }
 .of-rs-a.is-m .of-rsa-th { flex-direction: column; align-items: flex-start; gap: 2px; }
 
-/* Mientras está el reproductor, el piso se puede bajar 128 px más (§4) */
-.of.of-rs-on .of-scroll { padding-bottom: 144px; }
+/* Angosto (JST-314, C de JST-305): con el reproductor de menos de 600 px (se mide él, no la ventana; solo en el
+   computador) la caja pasa a dos filas: arriba la parte y la frase a lo ancho, abajo los mismos 6 botones. El DOM no
+   cambia (el Tab sigue ▶ ⏮ ⏭, chip, 1×, Texto, ✕); el alto queda entre 111 y 151 px. */
+.of-rs-a:not(.is-m) .of-rsa-dock { container: rsa / inline-size; }
+@container rsa (width < 600px) {
+  .of-rsa-bar { display: grid; grid-template-columns: 42px 32px 32px minmax(0, 1fr) auto auto 32px; grid-template-areas: "c c c c c c c" "pl pv nx . vl tx x"; column-gap: 6px; row-gap: 8px; align-items: center; }
+  .of-rsa-c { grid-area: c; padding: 0 2px; }
+  .of-rsa-play { grid-area: pl; }
+  .of-rsa-prev { grid-area: pv; } .of-rsa-next { grid-area: nx; }
+  .of-rsa-vel { grid-area: vl; } .of-rsa-txt { grid-area: tx; } .of-rsa-x { grid-area: x; }
+  .of-rsa-th { flex-direction: column; align-items: flex-start; gap: 2px; }
+}
+
+/* Mientras está el reproductor, el piso se puede bajar 128 px más (§4), o lo que mida el reproductor si es más (JST-314) */
+.of.of-rs-on .of-scroll { padding-bottom: calc(16px + max(128px, var(--of-rs-piso, 0px))); }
 /* Y en las páginas de Paperclip, lo justo para que lo último (en una tarea, el cuadro de comentario) quede 8 px arriba
    del reproductor (JST-298); el alto lo mide el reproductor (huecoAbajo) */
 html[data-of-rs-hueco] #main-content::after { content: ""; display: block; height: var(--of-rs-hueco, 0px); }
