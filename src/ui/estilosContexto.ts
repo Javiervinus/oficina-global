@@ -52,4 +52,28 @@ export const CSS_CONTEXTO = /* css */ `
 .of-ctx-toast { position: fixed; z-index: 1150; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--of-popover); border: 1px solid var(--of-danger-border);
   box-shadow: var(--of-shadow-pop); font-size: 13.5px; line-height: 19px; color: var(--of-fg); }
 .of-ctx-toast > svg { color: var(--of-s-error); flex: none; }
+
+/* ---------- En la ventana de responder (JST-321, design-spec de JST-320 rev 2, A · En la fila de la tarea) ---------- */
+/* Al final de la fila de la tarea, a la derecha */
+.of-rmeta .of-ctx-fila { margin-left: auto; }
+/* Celular: zona 44 × 44, ficha visible 32 × 32 (la fila sigue en 22 px) */
+.of-rw .of-rmeta .of-ctx.is-m.of-ctx-fila { margin: -11px -6px -11px auto; position: relative; isolation: isolate; border: 0; background: transparent; }
+.of-rw .of-ctx.is-m.of-ctx-fila::before { content: ""; position: absolute; inset: 6px; z-index: -1; border: 1px solid var(--of-input); border-radius: 8px; }
+.of-rw .of-ctx.is-m.of-ctx-fila.is-leyendo, .of-rw .of-ctx.is-m.of-ctx-fila.is-cargando { background: transparent; }
+.of-rw .of-ctx.is-m.of-ctx-fila.is-leyendo::before, .of-rw .of-ctx.is-m.of-ctx-fila.is-cargando::before { background: var(--of-muted); border-color: var(--of-border-strong); }
+.of-rw .of-ctx.is-m.of-ctx-fila.is-error > svg { color: var(--of-s-error); }
+.of-rw .of-ctx.is-m.of-ctx-fila:focus-visible { outline: none; }
+.of-rw .of-ctx.is-m.of-ctx-fila:focus-visible::before { outline: 2px solid var(--of-ring); outline-offset: 2px; }
+/* «Detener» con ■ (la ✕ de la ventana la cierra) */
+.of-ctx > svg.of-ctx-stop { width: 15px; height: 15px; }
+.of-rw .of-ctx.is-m > svg.of-ctx-stop { width: 19px; height: 19px; }
+/* Sin voz: dentro de la ventana, bajo la fila de la tarea. «flex: none» porque .of-rw-b es una columna que baja y, sin eso, lo aplasta a una línea en el celular. */
+.of-ctx-esc.is-in { flex: none; position: static; z-index: auto; width: auto; max-width: none; max-height: 172px; box-shadow: none; border-color: var(--of-border); background: var(--of-muted); padding: 4px 6px 6px; }
+.of-ctx-esc.is-in.is-m { max-height: 38vh; }
+.of-ctx-esc.is-in p.is-cur { background: var(--of-popover); }
+/* La pestaña que se lee */
+.of-rw-step .of-ctx-pil { color: var(--of-s-toca); margin-left: -2px; animation: of-ctx-late 1.2s ease-in-out infinite; }
+@keyframes of-ctx-late { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .of-rw-step .of-ctx-pil { animation: none; } }
+.of-rw.is-quieto .of-ctx-pil { animation: none; }
 `;

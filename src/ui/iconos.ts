@@ -75,6 +75,8 @@ export const PATHS = {
   "skip-forward": "<polygon points=\"5 4 15 12 5 20 5 4\"/><line x1=\"19\" x2=\"19\" y1=\"5\" y2=\"19\"/>",
   "text": "<path d=\"M15 18H3\"/><path d=\"M17 6H3\"/><path d=\"M21 12H3\"/>",
   "rotate-ccw": "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/>",
+  // 0.10.0 (JST-321): «Detener» de «Leer contexto» en la ventana de responder (la ✕ de la ventana la cierra)
+  "square": "<rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"2.5\" fill=\"currentColor\" stroke=\"none\"/>",
 } as const;
 
 export type NombreIcono = keyof typeof PATHS;

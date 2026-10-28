@@ -444,7 +444,7 @@ function MasVoces({ sinMac, motivo }: { sinMac: boolean; motivo: string | null }
       <div className="of-avp-note">
         <Icono nombre="info" tam={12} />
         <span>
-          Habla uno a la vez y los avisos pasan primero. Se oye una conversación por minuto como mucho; las demás, y lo que llega mientras alguien habla, se ven sin voz. «✓ listo» y la mano con su tarea van con «Terminé» y «Te necesito». Al abrir o recargar Paperclip, empiezan con tu primer clic. Voces clonadas a partir de Google Crowdsourced Chilean Spanish (OpenSLR 71), CC BY-SA 4.0.
+          Habla uno por vez y los avisos pasan primero. Se oye una conversación por minuto como mucho; las demás, y lo que llega mientras alguien habla, se ven sin voz. «✓ listo» y la mano con su tarea van con «Terminé» y «Te necesito». Al abrir o recargar Paperclip, empiezan con tu primer clic. Voces clonadas a partir de Google Crowdsourced Chilean Spanish (OpenSLR 71), CC BY-SA 4.0.
           <br />
           <b>De qué se trata:</b> «Terminé» y «Empecé» dicen la tarea, que se prepara con su voz cuando empieza. «Te necesito» dice la pregunta (o qué hay que aprobar o revisar), que se prepara cuando levanta la mano y se espera hasta 30 s; si no alcanza, dice la tarea. Si no alcanza ninguna, dice solo la frase. Una tarea que pasa a revisión con una pregunta para ti dice «Te necesito», no «Terminé». Los resúmenes no lo dicen. Lorenzo y Catalina lo piden a Microsoft (va el nombre de la tarea o la pregunta).
           {sinMac ? (

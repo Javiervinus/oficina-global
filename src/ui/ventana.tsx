@@ -39,6 +39,8 @@ import { hace, type AgenteVista } from "../vista.js";
 import { useAtraparFoco, useEsc } from "./capas.js";
 import type { Enlazar } from "./ficha.js";
 import { CajaPersonaje, cx, EtiquetaEmpresa, Icono } from "./piso.js";
+import { BotonContextoVentana, callarSiEsDeOtra, callarSiLee, ErrorVentana, EscritoVentana, leeEsta, tareaDeEspera } from "./contextoVentana.js";
+import { contexto, useContexto } from "./contextoBarra.js";
 
 export interface PropsVentana {
   /** El agente que espera, con sus esperas vivas (`teNecesita`, la más antigua primero). */
@@ -202,6 +204,13 @@ export function VentanaResponder({ agente, inicial, sync, agentes, celular, rm, 
     }
   }, [pasos, vivas, leer, cambiar]);
 
+  // «Leer contexto» (JST-321): lee la tarea de la pestaña activa. Al pasar a una pestaña de otra tarea se calla (de la
+  // misma tarea, sigue); al cerrar la ventana, también.
+  useContexto();
+  const tareaCtx = tareaDeEspera(espera);
+  useEffect(() => callarSiEsDeOtra(tareaCtx), [tareaCtx]);
+  useEffect(() => () => contexto.detener(), []);
+
   // El borrador de la espera (lo escrito y lo marcado).
   const borrador: Borrador | null = espera && contenido ? (borradores.get(espera.itemId) ?? borradorInicial(contenido)) : null;
   const guardar = (b: Borrador) => {
@@ -265,6 +274,8 @@ export function VentanaResponder({ agente, inicial, sync, agentes, celular, rm, 
       cambiar(e.itemId, { falta: motivo });
       return;
     }
+    // El envío sale: se calla lo que se lee de esa tarea (si falta algo, arriba, sigue leyendo).
+    callarSiLee(tareaDeEspera(e));
     cambiar(e.itemId, { envio: "enviando", falta: null, mensaje: null, ultimaAccion: accion });
     // Antes de enviar, ¿sigue pendiente? (alguien pudo responderla desde Telegram u otra pestaña).
     let d: Detalle | null;
@@ -713,13 +724,14 @@ export function VentanaResponder({ agente, inicial, sync, agentes, celular, rm, 
               const ch = chipDe(e);
               const s = estados[e.itemId];
               const ok = s?.envio === "ok" || s?.envio === "ya";
+              const lee = leeEsta(tareaDeEspera(e));
               return (
                 <button
                   key={e.itemId}
                   type="button"
                   role="tab"
                   aria-selected={k === i}
-                  className={cx("of-rw-step", k === i && "is-on", ok && "is-ok", ch.fuera && "is-ext")}
+                  className={cx("of-rw-step", k === i && "is-on", ok && "is-ok", ch.fuera && "is-ext", lee && "is-lee")}
                   onClick={() => irA(k)}
                 >
                   <span className="of-n">{ok ? <Icono nombre="check" tam={12} /> : k + 1}</span>
@@ -728,6 +740,7 @@ export function VentanaResponder({ agente, inicial, sync, agentes, celular, rm, 
                     <em>{e.identifier ?? ""}</em>
                   </span>
                   {ch.fuera ? <Icono nombre="arrow-up-right" tam={12} /> : null}
+                  {lee ? <Icono nombre="volume-2" tam={12} className="of-ctx-pil" /> : null}
                 </button>
               );
             })}
@@ -746,7 +759,10 @@ export function VentanaResponder({ agente, inicial, sync, agentes, celular, rm, 
               </a>
             ) : null}
             <span className="of-rago">{hace(espera.desde, ahora)}</span>
+            {tareaCtx ? <BotonContextoVentana tarea={tareaCtx} codigo={espera.identifier ?? "la tarea"} celular={celular} /> : null}
           </div>
+          {tareaCtx ? <EscritoVentana tarea={tareaCtx} celular={celular} /> : null}
+          {tareaCtx ? <ErrorVentana tarea={tareaCtx} celular={celular} /> : null}
           <div>
             <h3 className="of-rtitle" id={idTitulo}>
               {titulo}
