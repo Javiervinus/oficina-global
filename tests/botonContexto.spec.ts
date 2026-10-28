@@ -2,6 +2,7 @@
 // («¿Lo publico hoy?», «Sí, dale.»), si después de limpiarlo queda algo que decir.
 import { describe, expect, it, vi } from "vitest";
 import { componerTexto } from "../src/ui/botonContexto.js";
+import { enIngles } from "../src/ui/contextoVoz.js";
 
 vi.mock("@paperclipai/plugin-sdk/ui", () => ({ useHostContext: () => ({}) }));
 vi.mock("../src/ui/piso.js", () => ({ cx: () => "", Icono: () => null }));
@@ -47,5 +48,38 @@ describe("lo corto también se lee", () => {
     const pregunta = { ...comentario("🙋 Te toca: ¿lo publico hoy?", "2026-10-25T09:00:00.000Z"), authorType: "agent" };
     const texto = componerTexto(tarea(null), [comentario("Sí, dale.", "2026-10-25T10:00:00.000Z"), pregunta], []);
     expect(texto).toMatch(/ Lo último en el hilo: Sí, dale\. Te toca: ¿lo publico hoy\?$/);
+  });
+});
+
+describe("el inglés se mira en lo que se lee (JST-310)", () => {
+  // Como las «Review productivity for …» que crea Paperclip: la plantilla en inglés y, al final,
+  // los comentarios del agente en español. Entera tiene más español que inglés.
+  const avance = "- run `abc1234`: ⏳ Avance: ya está el arreglo de la prueba, falta que la QA lo vea en la copia y que el usuario lo apruebe en la tarjeta.";
+  const plantilla = [
+    "Paperclip detected an unusual productivity/progression pattern on an assigned issue.",
+    "## Source",
+    "- Source issue: [JST-900](/JST/issues/JST-900)\n- Assigned agent: Agente de prueba (qa)\n- Primary trigger: `high_churn` (High churn)",
+    "- Trigger reasons: 11 runs/6 assignee-run comments in 1h; 11 runs/6 assignee-run comments in 6h",
+    "## Latest Assignee Run Comments",
+    Array(8).fill(avance).join("\n"),
+  ].join("\n\n");
+
+  it("la descripción que empieza en inglés no se lee aunque termine en español", () => {
+    expect(enIngles(plantilla)).toBe(false);
+    const texto = componerTexto(tarea(plantilla), [comentario("Listo: el patrón es normal, la cierro como productiva.")], []);
+    expect(texto).toBe(
+      "Tarea JST-288: Prueba QA270 hija con descripción corta. Es parte de JST-181: Pestañas guardadas: respaldo de la lista (¿Google Drive?). Lo último en el hilo: Listo: el patrón es normal, la cierro como productiva.",
+    );
+  });
+
+  it("un comentario que empieza en inglés tampoco; el siguiente en español sí", () => {
+    const enInglesPrimero = comentario(
+      "The agent moved this issue to review because the build was green and there was nothing else to do on it. " +
+        "Después lo revisé yo: está bien, falta que la QA lo pruebe en la copia y que el usuario lo apruebe. ".repeat(4),
+      "2026-10-25T11:00:00.000Z",
+    );
+    expect(enIngles(enInglesPrimero.body)).toBe(false);
+    const texto = componerTexto(tarea(null), [enInglesPrimero, comentario("Sí, dale.")], []);
+    expect(texto).toMatch(/ Lo último en el hilo: Sí, dale\.$/);
   });
 });

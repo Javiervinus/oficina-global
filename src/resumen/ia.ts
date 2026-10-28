@@ -11,7 +11,8 @@
 // - Se revisa cada frase antes de leerla: los números, las horas, los nombres
 //   de los agentes y de las empresas y lo que va entre «» tienen que ser los
 //   mismos que en su frase armada. Si sobra, falta o cambia uno, esa parte va
-//   con las armadas.
+//   con las armadas. Lo mismo si escribe una palabra que no existe (JST-307).
+import { normalizar, palabrasRaras } from "../ia/palabras.js";
 import type { FraseResumen, Seccion } from "./frases.js";
 import { NOMBRE_SECCION } from "./frases.js";
 import { LETRAS_FRASE_RESUMEN, problemasFraseResumen } from "./voz.js";
@@ -222,6 +223,16 @@ function numerosJunto(t: string): Array<[string, string]> {
 }
 
 /**
+ * Las palabras que no existen («Concluímos», JST-307; la lista de la Oficina,
+ * JST-251) y que no vienen de la armada: los títulos, los nombres y lo que la
+ * armada ya dice («commit», «reseed», «mergeaste») no cuentan.
+ */
+export function palabrasNuevasRaras(armada: string, escrita: string): string[] {
+  const deLaArmada = new Set((armada.normalize("NFC").match(/\p{L}+/gu) ?? []).map(normalizar));
+  return palabrasRaras(escrita).filter((w) => !deLaArmada.has(normalizar(w)));
+}
+
+/**
  * Por qué no sirve lo que escribió la IA para esa frase armada (vacío: sirve).
  * `nombres`: los de los agentes y las empresas de la oficina. `sec`: de qué
  * parte es (en «Lo que te toca» y en el cierre todo ya es del usuario).
@@ -235,6 +246,8 @@ export function revisarFraseIa(armada: string, escrita: unknown, nombres: readon
   const ca = citasDe(armada);
   const ce = citasDe(t);
   if (!mismos(ca, ce)) mal.push("cambia un título");
+  const raras = palabrasNuevasRaras(armada, t);
+  if (raras.length) mal.push(`${raras.length === 1 ? "palabra que no existe" : "palabras que no existen"} (${raras.map((w) => `«${w}»`).join(", ")})`);
   const pa = plano(armada.replace(/«[^»]*»/g, " "));
   const pe = plano(t.replace(/«[^»]*»/g, " "));
   for (const n of nombres) {

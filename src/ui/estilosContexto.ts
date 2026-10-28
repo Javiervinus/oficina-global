@@ -22,6 +22,16 @@ export const CSS_CONTEXTO = /* css */ `
 .of-ctx.is-m > svg.of-i { width: 19px; height: 19px; }
 .of-ctx.is-m:hover { background: transparent; }
 .of-ctx.is-m.is-leyendo, .of-ctx.is-m.is-cargando { background: var(--of-muted); }
+/* Celular, último de la barra (JST-290, design-spec de JST-294 rev 2 §2): la zona de 44 × 44 empieza donde termina el
+   botón de al lado (se come los 4 px entre botones) y llega al borde de la pantalla (se come los 16 px de margen de la
+   barra): en la fila ocupa 28 px en vez de 44. El ícono va a 14,5 px del borde. El fondo de «Cargando» y «Leyendo» y el
+   foco van en una ficha de 32 × 32, a 4 px del botón de al lado y a 8 px del borde. */
+.of-ctx.is-m.is-borde { margin: 0 -16px 0 -4px; padding: 0 8px 0 4px; position: relative; isolation: isolate; }
+.of-ctx.is-m.is-borde::before { content: ""; position: absolute; inset: 6px 8px 6px 4px; z-index: -1; border-radius: 8px; pointer-events: none; }
+.of-ctx.is-m.is-borde.is-leyendo, .of-ctx.is-m.is-borde.is-cargando { background: transparent; }
+.of-ctx.is-m.is-borde.is-leyendo::before, .of-ctx.is-m.is-borde.is-cargando::before { background: var(--of-muted); }
+.of-ctx.is-m.is-borde:focus-visible { outline: none; }
+.of-ctx.is-m.is-borde:focus-visible::before { outline: 2px solid var(--of-ring); outline-offset: 2px; }
 
 /* Sin voz en español: todas las frases, escritas, bajo el botón (computador) o bajo la barra (celular) */
 .of-ctx-esc { position: fixed; z-index: 1150; width: 380px; max-width: calc(100vw - 16px); max-height: 340px; overflow: auto; padding: 6px 8px 8px; background: var(--of-popover);

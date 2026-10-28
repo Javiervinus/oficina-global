@@ -91,13 +91,24 @@ export const CSS_RESUMEN = /* css */ `
 .of-rsa-play svg.of-i { width: 16px; height: 16px; }
 .of-rsa-play:hover { filter: brightness(1.08); }
 .of-rs-fill svg.of-i, svg.of-i.of-rs-fill { fill: currentColor; }
+/* El arco del \`loader\` no se rellena: sin esto el ▶ de «Armando» y «Esperando» sale como un círculo (JST-314) */
+.of-rs-fill svg.of-i.of-rs-spin { fill: none; }
 .of-rsa-play:focus-visible, .of-rsa-bar .of-ibtn:focus-visible, .of-rsa-bar .of-btn:focus-visible, .of-rs-tid:focus-visible { outline: 2px solid var(--of-ring); outline-offset: 2px; }
 .of-rsa-bar .of-ibtn { width: 32px; height: 32px; flex: none; }
 .of-rsa-bar .of-ibtn:disabled { opacity: .35; cursor: default; }
 .of-rsa-c { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 0 8px 0 6px; }
 .of-rsa-sec { display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--of-muted-fg); white-space: nowrap; overflow: hidden; }
 .of-rsa-si.is-toca { color: var(--of-s-toca); } .of-rsa-si.is-hecho { color: var(--of-st-done); } .of-rsa-si.is-trabajan { color: var(--of-s-trabaja); } .of-rsa-si.is-cola { color: var(--of-st-todo); }
-.of-rsa-pz { margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--of-muted); color: var(--of-fg); letter-spacing: 0; text-transform: none; font-weight: 500; }
+/* La parte y «En pausa»: en la misma línea (11 px entre los dos) y, si no caben, «En pausa» entero abajo, sin sangría (JST-291) */
+.of-rsa-sec.is-parte { flex-wrap: wrap; column-gap: 11px; row-gap: 3px; }
+.of-rsa-sn { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+/* El texto de la cabecera, si no cabe ni solo en su línea, termina en «…» en vez de cortarse a media letra (JST-299) */
+.of-rsa-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* «k de N» nunca se corta: si no cabe junto al nombre, baja entero (JST-295). Su «·» va en los 11 px entre los dos;
+   al bajar, queda a la izquierda del borde y la cabecera lo esconde (overflow), así la línea empieza con el número */
+.of-rsa-k { flex: none; margin-left: -11px; }
+.of-rsa-k::before { content: "·"; content: "·" / ""; display: inline-block; width: 11px; text-align: center; letter-spacing: 0; }
+.of-rsa-pz { padding: 0 6px; border-radius: 4px; background: var(--of-muted); color: var(--of-fg); letter-spacing: 0; text-transform: none; font-weight: 500; white-space: normal; }
 .of-rsa-sub { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--of-fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .of-rsa-sub .of-cotag { vertical-align: 1px; margin-right: 4px; }
 .of-rsa-sub.is-mut { color: var(--of-muted-fg); font-weight: 400; display: flex; align-items: center; gap: 6px; }
@@ -153,8 +164,24 @@ export const CSS_RESUMEN = /* css */ `
 .of-rs-a.is-m .of-rsa-texto { max-height: 52vh; }
 .of-rs-a.is-m .of-rsa-th { flex-direction: column; align-items: flex-start; gap: 2px; }
 
-/* Mientras está el reproductor, el piso se puede bajar 128 px más (§4) */
-.of.of-rs-on .of-scroll { padding-bottom: 144px; }
+/* Angosto (JST-314, C de JST-305): con el reproductor de menos de 600 px (se mide él, no la ventana; solo en el
+   computador) la caja pasa a dos filas: arriba la parte y la frase a lo ancho, abajo los mismos 6 botones. El DOM no
+   cambia (el Tab sigue ▶ ⏮ ⏭, chip, 1×, Texto, ✕); el alto queda entre 111 y 151 px. */
+.of-rs-a:not(.is-m) .of-rsa-dock { container: rsa / inline-size; }
+@container rsa (width < 600px) {
+  .of-rsa-bar { display: grid; grid-template-columns: 42px 32px 32px minmax(0, 1fr) auto auto 32px; grid-template-areas: "c c c c c c c" "pl pv nx . vl tx x"; column-gap: 6px; row-gap: 8px; align-items: center; }
+  .of-rsa-c { grid-area: c; padding: 0 2px; }
+  .of-rsa-play { grid-area: pl; }
+  .of-rsa-prev { grid-area: pv; } .of-rsa-next { grid-area: nx; }
+  .of-rsa-vel { grid-area: vl; } .of-rsa-txt { grid-area: tx; } .of-rsa-x { grid-area: x; }
+  .of-rsa-th { flex-direction: column; align-items: flex-start; gap: 2px; }
+}
+
+/* Mientras está el reproductor, el piso se puede bajar 128 px más (§4), o lo que mida el reproductor si es más (JST-314) */
+.of.of-rs-on .of-scroll { padding-bottom: calc(16px + max(128px, var(--of-rs-piso, 0px))); }
+/* Y en las páginas de Paperclip, lo justo para que lo último (en una tarea, el cuadro de comentario) quede 8 px arriba
+   del reproductor (JST-298); el alto lo mide el reproductor (huecoAbajo) */
+html[data-of-rs-hueco] #main-content::after { content: ""; display: block; height: var(--of-rs-hueco, 0px); }
 
 /* El anillo del agente del que se habla (§6); la regla con su id la pone resumen.ts */
 @keyframes of-rs-anillo { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }

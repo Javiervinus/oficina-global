@@ -5,7 +5,8 @@
 //
 // - Solo en la página de una tarea (`/{prefijo}/issues/{código o id}`).
 // - Computador: botón con texto (30 px, mínimo 132 de ancho, «Detener 2/5»).
-//   Celular (≤ 767 px): solo el ícono, 44 × 44.
+//   Celular (≤ 767 px): solo el ícono, 44 × 44. Si es lo último de la barra,
+//   su zona llega al borde de la pantalla (JST-290, design-spec de JST-294 §2).
 // - Se calla al cambiar de tarea o de página y al cerrar la pestaña (§6): la
 //   barra no se desmonta, así que se mira la ruta. Un ancla de la misma tarea no.
 // - Una voz a la vez con el Resumen (§7): ver `resumen.ts`.
@@ -149,6 +150,72 @@ const ARIA: Readonly<Record<EstadoContexto, string>> = {
 };
 const TITULO: Readonly<Record<EstadoContexto, string>> = { listo: "Leer contexto", cargando: "Cargando…", leyendo: "Detener", fin: "Leer contexto", error: "No se pudo cargar la tarea" };
 
+// ---------------------------------------------------------------------------
+// Al borde de la pantalla, en el celular (JST-290, design-spec de JST-294 §2)
+// ---------------------------------------------------------------------------
+
+/** Lo que se mira de un elemento de la barra (un `HTMLElement`; las pruebas pasan uno de mentira). */
+export interface NodoBarra {
+  readonly nextElementSibling: NodoBarra | null;
+  readonly parentElement: NodoBarra | null;
+  getBoundingClientRect(): { readonly width: number; readonly right: number };
+}
+
+/** El margen derecho de la barra de Paperclip en el celular (`px-4`): el 🔊 se lo come para llegar al borde. */
+export const MARGEN_BARRA = 16;
+/** Hasta cuántos contenedores se sube buscando la barra (hoy son 3: los slots, el grupo de los plugins y la barra). */
+const NIVELES = 6;
+
+/**
+ * ¿El botón (`el`, su envoltorio) es lo último de la barra de arriba y la barra llega al borde derecho de la pantalla
+ * con sus 16 px de margen? Sube por los contenedores de Paperclip hasta el primero con margen a la derecha, que es la
+ * barra, y en cada nivel no puede haber nada visible después. Paperclip ordena los botones por el `order` del slot y
+ * después por el nombre del plugin: hoy el 🔊 («Oficina global») va último. Si otro plugin queda después, o la barra
+ * cambia de margen o no llega al borde, no: el botón queda como en la 0.9.6.
+ */
+export function alBordeDeLaBarra(el: NodoBarra, margenDerecho: (n: NodoBarra) => number, anchoPantalla: number): boolean {
+  let x = el;
+  for (let i = 0; i < NIVELES; i++) {
+    for (let s = x.nextElementSibling; s; s = s.nextElementSibling) if (s.getBoundingClientRect().width > 0) return false;
+    const p = x.parentElement;
+    if (!p) return false;
+    const m = margenDerecho(p);
+    if (m > 0) return Math.round(m) === MARGEN_BARRA && Math.abs(p.getBoundingClientRect().right - anchoPantalla) < 1;
+    x = p;
+  }
+  return false;
+}
+
+/** La barra: el primer contenedor con margen a la derecha (ahí se mira si otro plugin aparece después). */
+function barraDe(el: HTMLElement): HTMLElement | null {
+  let p = el.parentElement;
+  for (let i = 0; p && i < NIVELES; i++, p = p.parentElement) if ((parseFloat(getComputedStyle(p).paddingRight) || 0) > 0) return p;
+  return null;
+}
+
+/**
+ * En el celular, si el botón va al borde. Se vuelve a mirar al cambiar el ancho y cuando cambia algo en la barra
+ * (un plugin que carga después y queda detrás).
+ */
+function useAlBorde(caja: RefObject<HTMLElement | null>, activo: boolean): boolean {
+  const [borde, setBorde] = useState(false);
+  useLayoutEffect(() => {
+    const el = caja.current;
+    if (!activo || !el) return;
+    const mirar = () =>
+      setBorde(alBordeDeLaBarra(el, (n) => parseFloat(getComputedStyle(n as Element).paddingRight) || 0, document.documentElement.clientWidth || window.innerWidth));
+    mirar();
+    const mo = new MutationObserver(mirar);
+    mo.observe(barraDe(el) ?? el.parentElement ?? el, { childList: true, subtree: true });
+    window.addEventListener("resize", mirar);
+    return () => {
+      mo.disconnect();
+      window.removeEventListener("resize", mirar);
+    };
+  }, [activo, caja]);
+  return activo && borde;
+}
+
 /**
  * Dónde va lo que sale bajo el botón: en el computador, 10 px bajo él y a su borde derecho; en el celular, a lo
  * ancho, 8 px bajo la barra. Se vuelve a medir con cada cambio de la lectura (`tic`), por si la barra se reacomoda.
@@ -212,6 +279,8 @@ export function BotonContextoBarra() {
   const rm = useMovimientoReducido();
   const c = useContexto();
   const boton = useRef<HTMLButtonElement>(null);
+  const caja = useRef<HTMLSpanElement>(null);
+  const borde = useAlBorde(caja, celular && !!tarea);
   // Al ir a otra tarea o a otra página (o si el host quita la barra), se calla (§6).
   useEffect(() => {
     if (!tarea) return;
@@ -225,11 +294,11 @@ export function BotonContextoBarra() {
   if (!tarea) return null;
   const n = c.frases.length;
   return (
-    <span className={cx("of-layer of-ctxw", rm && "of-rm")}>
+    <span ref={caja} className={cx("of-layer of-ctxw", rm && "of-rm")}>
       <button
         ref={boton}
         type="button"
-        className={cx("of-ctx", `is-${e}`, celular && "is-m")}
+        className={cx("of-ctx", `is-${e}`, celular && "is-m", borde && "is-borde")}
         aria-label={ARIA[e]}
         title={TITULO[e]}
         aria-busy={e === "cargando" ? true : undefined}

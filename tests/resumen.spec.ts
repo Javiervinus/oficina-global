@@ -28,7 +28,7 @@ import {
   type Seccion,
   type Titulo,
 } from "../src/resumen/frases.js";
-import { citasDe, deTi, duenosDeVeces, EJEMPLO_PEDIDO_RESUMEN, EJEMPLO_RESPUESTA_RESUMEN, ideasDe, leerParteIa, numerosDe, numerosPegados, pedidoIa, revisarFraseIa } from "../src/resumen/ia.js";
+import { citasDe, deTi, duenosDeVeces, EJEMPLO_PEDIDO_RESUMEN, EJEMPLO_RESPUESTA_RESUMEN, ideasDe, leerParteIa, numerosDe, numerosPegados, palabrasNuevasRaras, pedidoIa, revisarFraseIa } from "../src/resumen/ia.js";
 import { desdeCuando, DIA_MS, explicacionDesde, hace, inicioDe, inicioDelDia, MINUTO_MS, nuevoDe, periodoFrase, periodoTexto } from "../src/resumen/tiempo.js";
 import { problemasFraseResumen } from "../src/resumen/voz.js";
 
@@ -677,5 +677,30 @@ describe("la IA de Chrome no cambia el sentido (JST-258: QA de la 0.9.0 con Gemi
     const frases = (JSON.parse(EJEMPLO_RESPUESTA_RESUMEN) as { frases: string[] }).frases;
     expect(frases).toHaveLength(armadas.length);
     armadas.forEach((a, i) => expect(revisarFraseIa(a, frases[i], nombres, "hecho")).toEqual([]));
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("la IA de Chrome no escribe palabras que no existen (JST-307: re-QA JST-280 con Gemini Nano)", () => {
+  const nombres = ["QA", "Líder técnico", "Integración y CI", "Betalandia", "JSTM"];
+  const titulo = "«commit y PR a develop del respaldo de cada lunes»";
+
+  it("bota «Concluímos» y «Progremamos» (de la QA y de la medición), y deja «concluimos»", () => {
+    expect(revisarFraseIa(`Se terminó una tarea de un pedido: ${titulo}.`, `Concluímos una tarea de un pedido: ${titulo}.`, nombres, "hecho")).toEqual(["palabra que no existe («Concluímos»)"]);
+    expect(revisarFraseIa("Se terminaron 198 tareas de 36 pedidos.", "Progremamos 198 tareas de 36 pedidos.", nombres, "hecho")).toEqual(["palabra que no existe («Progremamos»)"]);
+    expect(revisarFraseIa(`Se terminó una tarea de un pedido: ${titulo}.`, `Concluimos una tarea de un pedido: ${titulo}.`, nombres, "hecho")).toEqual([]);
+    expect(palabrasNuevasRaras("Se terminaron 4 tareas.", "Concluímos y progremamos 4 tareas.")).toEqual(["Concluímos", "progremamos"]);
+    // Y queda anotado en el registro de la IA, con la parte que vuelve a las armadas.
+    const leido = leerParteIa(JSON.stringify({ frases: [`Concluímos una tarea de un pedido: ${titulo}.`] }), [{ sec: "hecho", texto: `Se terminó una tarea de un pedido: ${titulo}.` }], nombres);
+    expect(leido).toEqual({ frases: null, mal: ["1: palabra que no existe («Concluímos»)"] });
+  });
+
+  it("lo que viene de la armada no cuenta: los títulos, los nombres, «reseed» o «mergeaste»", () => {
+    expect(revisarFraseIa(`En Betalandia: Integración y CI, 25 minutos con ${titulo}.`, `En Betalandia, Integración y CI lleva 25 minutos con ${titulo}.`, nombres, "trabajan")).toEqual([]);
+    expect(revisarFraseIa("Eso es todo. Lo primero: revisar el reseed del ambiente de pruebas.", "Eso es todo por ahora. Lo primero: revisar el reseed del ambiente de pruebas.", nombres, "cierre")).toEqual([]);
+    expect(revisarFraseIa("Después, Líder técnico de Betalandia te pregunta: ¿Ya mergeaste el PR 31 en develop? Desde hace un día.", "Luego, Líder técnico de Betalandia te pregunta: ¿Ya mergeaste el PR 31 en develop? Desde hace un día.", nombres, "toca")).toEqual([]);
+    // Pero no una que la armada no trae, aunque esté en otra frase.
+    expect(palabrasNuevasRaras("Eso es todo.", "Eso es todo, reseed.")).toEqual(["reseed"]);
   });
 });

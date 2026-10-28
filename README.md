@@ -6,7 +6,7 @@ A [Paperclip](https://github.com/paperclipai/paperclip) plugin that draws the ag
 
 **The interface and the voices are in Spanish** (Chilean voices included). This README quotes the on-screen labels in Spanish, with a translation the first time they appear.
 
-- Plugin key: `jstm.oficina-pixel` · npm package: `paperclip-plugin-oficina-global` · version `0.9.5`
+- Plugin key: `jstm.oficina-pixel` · npm package: `paperclip-plugin-oficina-global` · version `0.9.7`
 - Tested with Paperclip `2026.824.1`.
 
 ## What it does
