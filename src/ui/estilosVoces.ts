@@ -28,6 +28,9 @@ export const CSS_VOCES = /* css */ `
 .vz-sel-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vz-sel.is-ancho .vz-sel-t { flex: 1; text-align: left; }
 .vz-sel > svg:last-child { color: var(--of-muted-fg); flex: none; }
+/* Mientras graba la voz nueva, el loader ocupa el lugar del chevron: el nombre («Clon #42») se lee entero. */
+.vz-sel.is-gira { padding-right: 10px; }
+.vz-sel.is-gira > svg:last-child { display: none; }
 
 /* La lista de voces: se abre bajo su fila */
 .vz-lista { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 6px; padding: 4px; border-radius: 10px; border: 1px solid var(--of-border); background: color-mix(in srgb, var(--of-muted) 55%, var(--of-popover)); }

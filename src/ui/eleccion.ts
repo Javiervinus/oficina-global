@@ -161,6 +161,11 @@ interface Respuesta {
   eleccion: EleccionVoces;
 }
 
+/** ¿Esta acción puede cambiar la voz de un agente en `indice.json`? */
+export function cambiaIndice(accion: string, params: Record<string, unknown>): boolean {
+  return accion === "voz-reiniciar" || (accion === "voz-elegir" && params.quien === "agente");
+}
+
 async function mandar(companyId: string, accion: string, params: Record<string, unknown>, donde: string): Promise<boolean> {
   const r = await pedir<Respuesta>(companyId, accion, params);
   if (!r) {
@@ -172,6 +177,9 @@ async function mandar(companyId: string, accion: string, params: Record<string, 
   leidaEn = Date.now();
   error = r.ok ? null : { donde, motivo: r.motivo ?? "pedido", pedido: { accion, params } };
   avisar();
+  // Si no había nada que grabar (los audios de esa voz ya existían, o «Volver a como estaba»), el worker ya cambió el
+  // índice y no habrá un fin de grabación que lo delate: se lee ahora, para que la fila y su ▶ muestren la voz guardada.
+  if (r.ok && cambiaIndice(accion, params)) await cargarIndice(true).catch(() => null);
   await refrescarEstado(companyId);
   if (grabando.some((g) => !g.error)) seguir(companyId);
   return r.ok;

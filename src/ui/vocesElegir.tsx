@@ -64,7 +64,7 @@ export function etiquetaDe(valor: VozId | "navegador" | "igual", resumen: VozLec
 
 function Disparador({ texto, abierta, onClick, ancho = false, girando = false, deshabilitada = false, etiqueta, titulo }: { texto: string | null; abierta: boolean; onClick: () => void; ancho?: boolean; girando?: boolean; deshabilitada?: boolean; etiqueta: string; titulo?: string }) {
   return (
-    <button type="button" className={cx("vz-sel", abierta && "is-open", ancho && "is-ancho")} aria-haspopup="listbox" aria-expanded={abierta} aria-label={etiqueta} title={titulo} disabled={deshabilitada} onClick={onClick}>
+    <button type="button" className={cx("vz-sel", abierta && "is-open", ancho && "is-ancho", girando && "is-gira")} aria-haspopup="listbox" aria-expanded={abierta} aria-label={etiqueta} title={titulo} disabled={deshabilitada} onClick={onClick}>
       {girando ? <Icono nombre="loader" tam={12} className="of-spin" /> : null}
       {texto === null ? <span className="vz-sk" aria-hidden="true" /> : <span className="vz-sel-t">{texto}</span>}
       <Icono nombre="chevron-down" tam={12} />
