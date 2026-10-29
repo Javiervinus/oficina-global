@@ -13,7 +13,7 @@ const RELEER_MS = 10 * 60_000;
 let base: Promise<string | null> | null = null;
 
 /** `/_plugins/<uuid>/ui/`: en el TV está en la dirección; en Paperclip se pregunta una vez. */
-function baseUi(): Promise<string | null> {
+export function baseUi(): Promise<string | null> {
   const m = typeof location !== "undefined" ? /^\/_plugins\/[^/]+\/ui\//.exec(location.pathname) : null;
   if (m) return Promise.resolve(m[0]);
   base ??= idInstalacion({ base: "" }, PLUGIN_KEY)
@@ -27,9 +27,9 @@ let leidoEn = 0;
 let leyendo: Promise<IndiceVoces | null> | null = null;
 const oyentes = new Set<() => void>();
 
-/** El índice (lo lee si hace falta). `null` si todavía no se generaron audios. */
-export function cargarIndice(): Promise<IndiceVoces | null> {
-  if (indice && Date.now() - leidoEn < RELEER_MS) return Promise.resolve(indice);
+/** El índice (lo lee si hace falta; `forzar`: otra vez, porque una voz nueva quedó lista). `null` si todavía no se generaron audios. */
+export function cargarIndice(forzar = false): Promise<IndiceVoces | null> {
+  if (!forzar && indice && Date.now() - leidoEn < RELEER_MS) return Promise.resolve(indice);
   leyendo ??= baseUi()
     .then(async (b) => {
       if (!b) return null;

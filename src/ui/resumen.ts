@@ -33,9 +33,7 @@ import { agenteParaVoz, Arbol, armarDatos, completarArbol, contarPartes, elegida
 import { duracionTotal, frasesDeSeccion, leerOpciones, seccionesDe, textoDuracion, type Contexto, type FraseResumen, type OpcionesResumen, type Seccion, type Titulo } from "../resumen/frases.js";
 import { Lector } from "../resumen/lector.js";
 import { explicacionDesde, inicioDe } from "../resumen/tiempo.js";
-import { vozParaResumen } from "../resumen/voz.js";
-import type { VozId } from "../voces.js";
-import { cargarIndice } from "./audiosVoces.js";
+import { calentarVoz, vozParaLeer } from "./eleccion.js";
 import { escribirResumen, iaParaResumen, type RegistroIa } from "./resumenIa.js";
 import { VozResumen } from "./resumenVoz.js";
 import { audioDelResumen, fijarResumenSonando, resumenAjeno } from "./sonido.js";
@@ -105,16 +103,10 @@ export function empresasDe(o: Pick<Oficina, "empresas" | "ocultas">): EmpresaRes
 
 const normal = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-/** La voz del Chief of staff según el índice de las voces (hoy Lorenzo). Si no tiene una rápida, Lorenzo; sin índice, `null` (habla el navegador). */
-export async function vozDelChief(agentes: readonly Pick<AgenteOficina, "id" | "nombre" | "prefijo">[]): Promise<VozId | null> {
-  const indice = await cargarIndice().catch(() => null);
-  if (!indice) return null;
-  const cs = agentes.filter((a) => normal(a.nombre) === "chief of staff").sort((a, b) => Number(b.prefijo === "JST") - Number(a.prefijo === "JST"));
-  for (const a of cs) {
-    const v = vozParaResumen(indice.agentes[a.id]);
-    if (v) return v;
-  }
-  return "lorenzo";
+/** La empresa con que se le habla al worker de las voces (el host revisa que el usuario la vea): la primera con sala, o la primera. */
+function companyIdDeVoz(o: Pick<Oficina, "empresas" | "ocultas">): string | null {
+  const empresas = empresasDe(o);
+  return empresas.find((e) => o.empresas.some((x) => x.id === e.id))?.id ?? empresas[0]?.id ?? null;
 }
 
 const esCelular = () => typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 767px)").matches;
@@ -204,10 +196,17 @@ export class ControlResumen {
     this.avisar();
   }
 
+  /** La empresa con que se le habla al worker de las voces, cuando la Oficina ya cargó (si no, `null`). */
+  empresaDeVoz(): string | null {
+    return this.oficina ? companyIdDeVoz(this.oficina) : null;
+  }
+
   /** Al abrir el menú: lo terminado del período y las abiertas de las empresas elegidas (lo que ya llegó, si es de hace menos de 1 min); después, el pedido de origen de cada una (para lo que dura). */
   pedirParaMenu(): void {
     const o = this.oficina;
     if (!o) return;
+    // 0.11.0 (JST-325): el motor de la voz elegida se abre ahora, no al tocar ▶ (con Alex son 3 a 5 s menos de espera).
+    calentarVoz("resumen", companyIdDeVoz(o));
     const elegidas = elegidasDe(empresasDe(o), this.op.co);
     void this.pedirDatos(elegidas, inicioDe(this.op.desde, Date.now(), this.ultima)).then(() => this.subirParaMenu());
   }
@@ -418,14 +417,14 @@ export class ControlResumen {
     const conIa = !esCelular() && iaParaResumen();
     const ctx: Contexto = { ahora, ultima, op, conIa };
     const id = `r${ahora.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-    const companyId = empresas.find((e) => o.empresas.some((x) => x.id === e.id))?.id ?? empresas[0]?.id ?? null;
+    const companyId = companyIdDeVoz(o);
     this.armadoEn = ahora;
     this.periodo = { desde: op.desde, ahora, ultima };
     this.fallanResumen = [];
     this.conIa = conIa;
     this.guardadoFin = false;
     this.texto = false;
-    const voz = new VozResumen({ voz: vozDelChief(o.agentes), resumen: id, companyId, audio, alCambiar: () => this.avisar() });
+    const voz = new VozResumen({ voz: vozParaLeer("resumen", companyId), resumen: id, companyId, audio, alCambiar: () => this.avisar() });
     const lector = new Lector({
       voz,
       ahora: Date.now,

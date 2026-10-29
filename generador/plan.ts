@@ -2,6 +2,7 @@
 // que la Oficina puede decir, con los mismos textos que arma la página.
 import { createHash } from "node:crypto";
 import { FRASES, MOTIVOS_ERROR, MUESTRA_PREGUNTA, nombreCorto, TEXTO_MUESTRA, textoVoz, type Frase, type Presentacion } from "../src/avisos.js";
+import { textosAvisosJuntos } from "../src/eleccionVoces.js";
 import { claveAudio, VOCES, VOZ_RESUMEN, vozPorId, type Voz, type VozId } from "../src/voces.js";
 import { VERSION_PRONUNCIACION } from "./pronunciar.js";
 
@@ -69,7 +70,7 @@ export function archivoDe(voz: VozId, texto: string): string {
  * («¿Instalo la versión nueva ahora?»). Las frases con el nombre de una tarea
  * o con una pregunta de verdad no van aquí: las prepara el worker.
  */
-export function plan(agentes: readonly AgentePlan[], voces: Readonly<Record<string, VozId>>): Trabajo[] {
+export function plan(agentes: readonly AgentePlan[], voces: Readonly<Record<string, VozId>>, vozResumen: VozId = VOZ_RESUMEN): Trabajo[] {
   const lista: Trabajo[] = [];
   const vistas = new Set<string>();
   const poner = (voz: Voz, texto: string) => {
@@ -88,7 +89,37 @@ export function plan(agentes: readonly AgentePlan[], voces: Readonly<Record<stri
   for (const voz of VOCES) for (const motivo of MOTIVOS_ERROR) poner(voz, textoVoz("", "", "error", "frase", { motivo }));
   for (const voz of VOCES) poner(voz, TEXTO_MUESTRA);
   for (const voz of VOCES) poner(voz, MUESTRA_PREGUNTA);
-  const resumen = vozPorId(VOZ_RESUMEN)!;
+  const resumen = vozPorId(vozResumen)!;
   for (const f of ORDEN_FRASES) for (let n = 2; n <= Math.max(2, agentes.length); n++) poner(resumen, `${FRASES[f].resumen(n)}.`);
   return lista;
+}
+
+/**
+ * 0.11.0 (JST-325): lo que se graba al darle otra voz a un agente. Las 20 frases
+ * con su nombre y empresa (4 frases × 2 presentaciones, y 6 motivos de error × 2);
+ * las de «Solo la frase» y las muestras ya están grabadas para las 9 voces, pero
+ * se piden igual por si falta alguna (las que ya existen no se vuelven a hacer).
+ */
+export function trabajosDeAgente(a: Pick<AgentePlan, "id" | "nombre" | "empresa">, voz: VozId): Trabajo[] {
+  const v = vozPorId(voz);
+  if (!v) return [];
+  const lista: Trabajo[] = [];
+  const vistas = new Set<string>();
+  const poner = (texto: string) => {
+    if (vistas.has(texto)) return;
+    vistas.add(texto);
+    lista.push({ voz: v, texto, archivo: archivoDe(v.id, texto) });
+  };
+  for (const f of ORDEN_FRASES) for (const p of PRESENTACIONES) poner(textoVoz(nombreCorto(a.nombre), a.empresa, f, p));
+  for (const motivo of MOTIVOS_ERROR) for (const p of PRESENTACIONES) poner(textoVoz(nombreCorto(a.nombre), a.empresa, "error", p, { motivo }));
+  for (const f of ORDEN_FRASES) poner(textoVoz("", "", f, "frase"));
+  for (const motivo of MOTIVOS_ERROR) poner(textoVoz("", "", "error", "frase", { motivo }));
+  poner(TEXTO_MUESTRA);
+  poner(MUESTRA_PREGUNTA);
+  return lista;
+}
+
+/** Los «3 agentes te necesitan.» con esa voz, para cualquier número de agentes (de 2 a `agentes`). */
+export function trabajosAvisosJuntos(agentes: number, voz: VozId): Trabajo[] {
+  return textosAvisosJuntos(agentes).map((texto) => ({ voz: vozPorId(voz)!, texto, archivo: archivoDe(voz, texto) }));
 }

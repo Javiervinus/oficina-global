@@ -40,6 +40,16 @@
 //   3 s más el doble de sus letras a 10 por segundo) se bota, al hacerlo y al
 //   arrancar el worker con los que ya estaban guardados.
 //
+// - 0.11.0 (JST-325, design-spec de JST-324): el usuario elige la voz del
+//   Resumen, la de «Leer contexto» y la de cada agente. La elección queda en
+//   `voces/eleccion.json` (`elegir`). Cambiar la voz de un agente graba sus 20
+//   frases con nombre y empresa **en segundo plano** y recién al terminar la
+//   última escribe la voz nueva en `indice.json`: mientras tanto sigue con la
+//   de antes (un grupo a la vez; los demás esperan). Lo mismo con los «3
+//   agentes te necesitan» (100 frases) cuando cambia la voz del Resumen. Un
+//   clon espera a que la Mac esté libre, sin fallar. Y `calentar` abre el motor
+//   de la voz elegida antes de leer (el Resumen y «Leer contexto» esperan menos).
+//
 // No lee ni escribe nada en Paperclip.
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -48,8 +58,10 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { LETRAS_PIDE, MAX_MAS, TIPOS_PIDE, tareaParaVoz, textoVoz, type Frase, type PideVoz, type Presentacion } from "./avisos.js";
 import { comando, convertir, datosDeVoz, hayModeloKokoro, maximoAudioMs, problemaCon, PRUEBA_FFMPEG } from "../generador/motores.js";
+import { trabajosAvisosJuntos, trabajosDeAgente } from "../generador/plan.js";
 import { paraDecir } from "../generador/pronunciar.js";
-import { archivoVivo, CARPETA_VIVO, duracionMp3, leerIndice, vozPorId, type IndiceVoces, type Motor } from "./voces.js";
+import { esAlMomento, esVozLectura, hayCambios, leerEleccion, RESUMEN_INICIAL, type EleccionVoces, type GrabandoVoz } from "./eleccionVoces.js";
+import { archivoVivo, CARPETA_VIVO, claveAudio, duracionMp3, leerIndice, vozPorId, type IndiceVoces, type Motor, type VozId } from "./voces.js";
 import { textoOficina, validarPedidoOficina, VOCES_MASCOTA } from "./vozOficina.js";
 import { CupoResumen, fraseResumenValida, leerPedidoResumen } from "./resumen/voz.js";
 
@@ -74,8 +86,15 @@ export const TOPE_FRASE_MS = 3 * 60_000;
 export const VIGILAR_MS = 10_000;
 /** Después de cortar un clon porque la Mac se cargó, no se empieza otro en este rato. */
 export const PAUSA_CLONES_MS = 5 * 60_000;
-/** Un motor sin trabajo se cierra a los 2 min (los clones, a los 10: tardan en cargar). */
-const INACTIVO_MS: Record<Fila, number> = { edge: 2 * 60_000, kokoro: 2 * 60_000, clon: 10 * 60_000 };
+/**
+ * Un motor sin trabajo se cierra a los 10 min (JST-325, punto 3 del spike de JST-323: con el motor ya abierto la primera
+ * frase del Resumen baja de 3–5 s a 2–3,5 s; antes se cerraba a los 2 min y casi cada lectura empezaba en frío).
+ */
+const INACTIVO_MS: Record<Fila, number> = { edge: 10 * 60_000, kokoro: 10 * 60_000, clon: 10 * 60_000 };
+/** Si falla una frase de las que se graban al cambiar una voz, se vuelve a probar a los 30 s (hasta 3 veces); un clon que espera a la Mac, a los 60 s. */
+const REINTENTO_MS = 30_000;
+const REINTENTO_CLON_MS = 60_000;
+const INTENTOS_GRUPO = 3;
 /** Lo de más de 7 días se borra, y la carpeta no pasa de ~200 MB. */
 export const VIVO_DIAS_MS = 7 * 24 * 60 * 60_000;
 export const VIVO_MAX_BYTES = 200 * 1024 * 1024;
@@ -148,6 +167,8 @@ export interface TrabajoVoz {
   archivo: string;
   /** «Empecé» (JST-194) y «te necesito» con la pregunta (0.8.0): van delante en su fila. */
   delante?: boolean;
+  /** 0.11.0: el grupo de frases de una voz nueva al que pertenece (van en la carpeta de las voces, no en `vivo/`). */
+  grupo?: string;
 }
 
 /**
@@ -171,6 +192,8 @@ export interface OpcionesPreparador {
   revisar?: () => string | null;
   /** Se puede empezar un clon ahora (swap y carga de la Mac). */
   clonesOk?: () => boolean;
+  /** 0.11.0: abre el motor de una voz para que la primera frase no tenga que esperarlo (las pruebas no abren ninguno). */
+  calentar?: (fila: Fila, motor: Motor) => void;
   /** El clon que se está haciendo puede seguir (se mira cada 10 s). */
   clonSigue?: () => boolean;
   log?: (mensaje: string, datos?: Record<string, unknown>) => void;
@@ -202,6 +225,28 @@ interface IndiceVivo {
   audios: Record<string, { voz: string; texto: string; creado: string; ms?: number | null }>;
 }
 
+interface GrupoVoz {
+  id: string;
+  quien: "agente" | "resumen";
+  agenteId: string | null;
+  voz: VozId;
+  anterior: VozId | null;
+  trabajos: Array<{ voz: VozTrabajo; texto: string; archivo: string }>;
+  /** Las que faltaban al empezar (las sueltas de cada voz ya estaban grabadas): lo que cuenta «Grabando 12 de 20». */
+  nuevos: Set<string>;
+  intentos: Map<string, number>;
+  error: boolean;
+  esperaMac: boolean;
+  arrancado: boolean;
+}
+
+/** Lo que responde `elegir`: la elección que queda y, si no se pudo, por qué. */
+export interface ResultadoElegir {
+  ok: boolean;
+  motivo?: "pedido" | "sin-mac" | "sin-voces";
+  eleccion: EleccionVoces;
+}
+
 /** Cómo está cada frase pedida: ya está, en su fila o no se puede hacer (sin voz, pedido raro, sin clones ahora, falló). */
 export type EstadoFrase = "lista" | "fila" | "no";
 
@@ -225,6 +270,10 @@ export class PreparadorVoces {
   private nuevasIa: number[] = [];
   /** 0.9.0: las frases nuevas de cada resumen y del último minuto. */
   private readonly cupoResumen: CupoResumen;
+  /** 0.11.0: las voces que se están grabando; la primera sin error graba y las demás esperan. */
+  private grupos: GrupoVoz[] = [];
+  private reintento: ReturnType<typeof setTimeout> | null = null;
+  private readonly calentarMotor: (fila: Fila, motor: Motor) => void;
   /** Lo hecho (para las pruebas y el registro). */
   hechos = 0;
   saltados = 0;
@@ -239,6 +288,7 @@ export class PreparadorVoces {
     this.clonesOk = o.clonesOk ?? (() => clonesSeguros());
     this.clonSigue = o.clonSigue ?? (() => clonSigue(loadavg()[0]!, nucleosDelMotor(this.motores.pid("clon")), cpus().length, swapLibreMb()));
     this.cupoResumen = new CupoResumen(this.ahora);
+    this.calentarMotor = o.calentar ?? ((fila, motor) => this.motores.calentar(fila, motor, INACTIVO_MS[fila]));
     try {
       this.botarLargosGuardados();
     } catch (e) {
@@ -298,15 +348,15 @@ export class PreparadorVoces {
   }
 
   /** Pone una frase en su fila si falta (cada voz y texto, una vez). `delante`: antes de lo que no va delante. */
-  private encolar(voz: VozTrabajo, texto: string, delante: boolean): EstadoFrase {
-    const archivo = archivoVivo(voz.id, texto);
+  private encolar(voz: VozTrabajo, texto: string, delante: boolean, destino?: { archivo: string; grupo: string }): EstadoFrase {
+    const archivo = destino?.archivo ?? archivoVivo(voz.id, texto);
     if (existsSync(join(this.dirVoces, archivo))) return "lista";
     if (this.enCurso.has(archivo)) return "fila";
     if (voz.motor === "kokoro" && !hayModeloKokoro()) return "no";
     this.enCurso.add(archivo);
     const fila = this.filas[filaDe(voz.motor)];
     const i = delante ? fila.findIndex((t) => !t.delante) : -1;
-    fila.splice(i < 0 ? fila.length : i, 0, { voz, texto, archivo, delante });
+    fila.splice(i < 0 ? fila.length : i, 0, { voz, texto, archivo, delante, ...(destino ? { grupo: destino.grupo } : {}) });
     return "fila";
   }
 
@@ -460,10 +510,12 @@ export class PreparadorVoces {
           this.saltados += 1;
           this.log("voces: sin clones ahora (poco swap o mucha carga)", { voz: t.voz.id });
           this.enCurso.delete(t.archivo);
+          this.trabajoTerminado(t, "sin-mac");
           continue;
         }
         const control = new AbortController();
         const inicio = this.ahora();
+        let resultado: "ok" | "falla" | "sin-mac" = "falla";
         // Un clon: cada 10 s se vuelve a mirar la Mac y, si se cargó, se corta ahí (no a los 3 min).
         const vigia = fila === "clon" ? setInterval(() => this.clonSigue() || control.abort(new Error("la Mac se cargó")), VIGILAR_MS) : null;
         try {
@@ -472,12 +524,15 @@ export class PreparadorVoces {
           const ms = this.duracion(t.archivo);
           if (this.botarSiLargo(t.archivo, t.voz.motor, t.texto, ms)) this.saltados += 1;
           else {
-            this.anotar(t, ms);
+            // Las frases de una voz nueva (0.11.0) no son de `vivo/`: no entran a `vivo.json` ni se borran a los 7 días.
+            if (!t.grupo) this.anotar(t, ms);
             this.hechos += 1;
+            resultado = "ok";
           }
         } catch (e) {
           this.saltados += 1;
           if (control.signal.aborted) {
+            resultado = "sin-mac";
             this.sinClonesHasta = this.ahora() + PAUSA_CLONES_MS;
             this.log("voces: clon cortado (la Mac se cargó)", { voz: t.voz.id, segundos: Math.round((this.ahora() - inicio) / 1000) });
           } else this.log("voces: no se pudo hacer una frase", { voz: t.voz.id, error: (e as Error).message.slice(0, 300) });
@@ -485,11 +540,269 @@ export class PreparadorVoces {
           if (vigia) clearInterval(vigia);
           this.enCurso.delete(t.archivo);
         }
+        this.trabajoTerminado(t, resultado);
       }
     } finally {
       this.corriendo[fila] = false;
       this.motores.dormir(fila, INACTIVO_MS[fila]);
     }
+  }
+
+
+  // -------------------------------------------------------------------------
+  // Elegir las voces (0.11.0, JST-325)
+  // -------------------------------------------------------------------------
+
+  /** Lo que el usuario dejó elegido (`eleccion.json`); sin archivo, lo que queda al instalar. */
+  eleccion(): EleccionVoces {
+    try {
+      return leerEleccion(JSON.parse(readFileSync(join(this.dirVoces, "eleccion.json"), "utf8")));
+    } catch {
+      return leerEleccion(null);
+    }
+  }
+
+  private guardarEleccion(e: EleccionVoces): void {
+    mkdirSync(this.dirVoces, { recursive: true });
+    const ruta = join(this.dirVoces, "eleccion.json");
+    writeFileSync(`${ruta}.parcial`, JSON.stringify(e));
+    renameSync(`${ruta}.parcial`, ruta);
+  }
+
+  private guardarIndice(i: IndiceVoces): void {
+    const ruta = join(this.dirVoces, "indice.json");
+    writeFileSync(`${ruta}.parcial`, JSON.stringify({ ...i, generado: new Date(this.ahora()).toISOString() }));
+    renameSync(`${ruta}.parcial`, ruta);
+  }
+
+  /**
+   * Lo que la página pide al elegir una voz. `resumen` y `contexto` solo se
+   * guardan (leen al momento, con una voz rápida o la del navegador); cambiar el
+   * Resumen además pide los «3 agentes te necesitan» con la voz nueva. `agente`
+   * graba sus frases en segundo plano y cambia la voz al terminar. Elegir la
+   * voz que ya tiene lo cancela; volver a elegir una que falló lo reintenta.
+   */
+  elegir(x: unknown): ResultadoElegir {
+    const p = (x && typeof x === "object" ? x : {}) as { quien?: unknown; voz?: unknown; agenteId?: unknown; corto?: unknown; empresa?: unknown };
+    const e = this.eleccion();
+    const mal = (motivo: NonNullable<ResultadoElegir["motivo"]>): ResultadoElegir => ({ ok: false, motivo, eleccion: e });
+    if (p.quien === "resumen" && esVozLectura(p.voz)) {
+      e.resumen = p.voz;
+      this.guardarEleccion(e);
+      this.alinearResumen();
+      return { ok: true, eleccion: e };
+    }
+    if (p.quien === "contexto" && (p.voz === "igual" || esVozLectura(p.voz))) {
+      e.contexto = p.voz;
+      this.guardarEleccion(e);
+      return { ok: true, eleccion: e };
+    }
+    if (p.quien !== "agente" || !corto(p.agenteId, 80) || !vozPorId(p.voz) || !corto(p.corto, LETRAS_NOMBRE) || !corto(p.empresa, LETRAS_NOMBRE)) return mal("pedido");
+    const agenteId = p.agenteId as string;
+    const voz = p.voz as VozId;
+    const indice = this.indice();
+    const actual = indice?.agentes[agenteId] ?? null;
+    if (!indice || !actual) return mal("pedido");
+    const ya = this.grupos.find((g) => g.agenteId === agenteId);
+    // La de antes (o la que ya se está grabando): se cancela lo que se grababa, o no hay nada que hacer.
+    if (voz === actual) {
+      if (ya) this.quitarGrupo(ya);
+      this.olvidarAgente(e, agenteId, actual);
+      this.guardarEleccion(e);
+      return { ok: true, eleccion: e };
+    }
+    if (ya && ya.voz === voz && !ya.error) return { ok: true, eleccion: e };
+    const agente = { id: agenteId, nombre: p.corto as string, empresa: p.empresa as string };
+    const trabajos = trabajosDeAgente(agente, voz).map((t) => ({ voz: t.voz as VozTrabajo, texto: t.texto, archivo: t.archivo }));
+    // Sin `uv` o `ffmpeg` solo se pueden elegir las voces que ese agente ya tiene grabadas.
+    if (!this.estado().disponible && trabajos.some((t) => !existsSync(join(this.dirVoces, t.archivo)))) return mal("sin-mac");
+    if (ya) this.quitarGrupo(ya);
+    if (!e.originales[agenteId]) e.originales[agenteId] = { voz: actual, corto: p.corto as string, empresa: p.empresa as string };
+    e.pendientes[agenteId] = { voz, corto: p.corto as string, empresa: p.empresa as string };
+    this.guardarEleccion(e);
+    this.grupos.push({ id: `agente:${agenteId}`, quien: "agente", agenteId, voz, anterior: actual, trabajos, nuevos: this.faltan(trabajos), intentos: new Map(), error: false, esperaMac: false, arrancado: false });
+    this.avanzar();
+    return { ok: true, eleccion: this.eleccion() };
+  }
+
+  /** «Volver a como estaba»: Alex, Dora y cada agente con la voz que tenía. */
+  reiniciar(): ResultadoElegir {
+    const antes = this.eleccion();
+    const e = { ...antes, resumen: RESUMEN_INICIAL as EleccionVoces["resumen"], contexto: "dora" as EleccionVoces["contexto"] };
+    this.guardarEleccion(e);
+    this.alinearResumen();
+    let ok = true;
+    for (const [agenteId, o] of Object.entries(antes.originales)) {
+      const r = this.elegir({ quien: "agente", agenteId, voz: o.voz, corto: o.corto, empresa: o.empresa });
+      if (!r.ok) ok = false;
+    }
+    return { ok, ...(ok ? {} : { motivo: "sin-mac" as const }), eleccion: this.eleccion() };
+  }
+
+  /** El agente ya no tiene nada que deshacer: ni lo que se grababa ni la voz de antes si es la misma. */
+  private olvidarAgente(e: EleccionVoces, agenteId: string, actual: VozId): void {
+    delete e.pendientes[agenteId];
+    if (e.originales[agenteId]?.voz === actual) delete e.originales[agenteId];
+  }
+
+  /** Al abrir el worker: sigue lo que quedó a medias (agentes que se estaban grabando) y pone los avisos juntos con la voz del Resumen. */
+  reanudar(): void {
+    try {
+      for (const [agenteId, d] of Object.entries(this.eleccion().pendientes)) this.elegir({ quien: "agente", agenteId, voz: d.voz, corto: d.corto, empresa: d.empresa });
+      this.alinearResumen();
+    } catch (err) {
+      this.log("voces: no se pudo reanudar la elección", { error: (err as Error).message.slice(0, 300) });
+    }
+  }
+
+  /**
+   * Los «3 agentes te necesitan» los dice la voz del Resumen: si la elegida es
+   * otra que la del índice, se piden las 100 frases (de 2 a 26 agentes) y recién
+   * al terminar el índice cambia. Sin la Mac (`uv`/`ffmpeg`) queda como estaba.
+   */
+  private alinearResumen(): void {
+    const e = this.eleccion();
+    const indice = this.indice();
+    const ya = this.grupos.find((g) => g.quien === "resumen");
+    if (!indice || !esAlMomento(e.resumen) || indice.resumen === e.resumen) {
+      if (ya) this.quitarGrupo(ya);
+      return;
+    }
+    if (ya && ya.voz === e.resumen && !ya.error) return;
+    if (ya) this.quitarGrupo(ya);
+    if (!this.estado().disponible) return;
+    const trabajos = trabajosAvisosJuntos(Object.keys(indice.agentes).length, e.resumen).map((t) => ({ voz: t.voz as VozTrabajo, texto: t.texto, archivo: t.archivo }));
+    this.grupos.push({ id: "resumen", quien: "resumen", agenteId: null, voz: e.resumen, anterior: indice.resumen, trabajos, nuevos: this.faltan(trabajos), intentos: new Map(), error: false, esperaMac: false, arrancado: false });
+    this.avanzar();
+  }
+
+  /** Los archivos que todavía no están grabados. */
+  private faltan(trabajos: ReadonlyArray<{ archivo: string }>): Set<string> {
+    return new Set(trabajos.map((t) => t.archivo).filter((a) => !existsSync(join(this.dirVoces, a))));
+  }
+
+  /** Saca un grupo (se canceló): lo que no empezó sale de las filas. */
+  private quitarGrupo(g: GrupoVoz): void {
+    this.grupos = this.grupos.filter((x) => x !== g);
+    for (const f of ["edge", "kokoro", "clon"] as const) {
+      this.filas[f] = this.filas[f].filter((t) => {
+        if (t.grupo !== g.id) return true;
+        this.enCurso.delete(t.archivo);
+        return false;
+      });
+    }
+    this.avanzar();
+  }
+
+  /** El grupo que graba ahora: el primero que no falló. */
+  private activo(): GrupoVoz | undefined {
+    return this.grupos.find((g) => !g.error);
+  }
+
+  /** Arranca el grupo que toca y confirma los que ya están completos (cada voz nueva se escribe en el índice de una vez). */
+  private avanzar(): void {
+    for (let g = this.activo(); g; g = this.activo()) {
+      if (!g.arrancado) {
+        g.arrancado = true;
+        for (const t of g.trabajos) {
+          if (this.encolar(t.voz, t.texto, false, { archivo: t.archivo, grupo: g.id }) === "no") {
+            g.error = true;
+            this.log("voces: no se puede grabar una voz nueva", { voz: g.voz, agente: g.agenteId });
+            break;
+          }
+        }
+        if (g.error) continue;
+        for (const f of ["edge", "kokoro", "clon"] as const) void this.correr(f);
+      }
+      if (!g.trabajos.every((t) => existsSync(join(this.dirVoces, t.archivo)))) return;
+      this.confirmar(g);
+      this.grupos = this.grupos.filter((x) => x !== g);
+    }
+  }
+
+  /** Están todas las frases: la voz nueva se escribe en `indice.json` y el agente cambia de una vez. */
+  private confirmar(g: GrupoVoz): void {
+    const indice = this.indice();
+    if (!indice) return;
+    if (g.quien === "agente" && g.agenteId) indice.agentes[g.agenteId] = g.voz;
+    else indice.resumen = g.voz;
+    for (const t of g.trabajos) indice.audios[claveAudio(t.voz.id, t.texto)] = t.archivo;
+    this.guardarIndice(indice);
+    const e = this.eleccion();
+    if (g.quien === "agente" && g.agenteId) this.olvidarAgente(e, g.agenteId, g.voz);
+    this.guardarEleccion(e);
+    this.log("voces: voz nueva lista", { voz: g.voz, agente: g.agenteId, frases: g.trabajos.length });
+  }
+
+  /** Terminó una frase de un grupo: se confirma si era la última; si falló, se vuelve a probar (hasta 3 veces); un clon sin la Mac, más tarde y sin contar. */
+  private trabajoTerminado(t: TrabajoVoz, r: "ok" | "falla" | "sin-mac"): void {
+    if (!t.grupo) return;
+    const g = this.grupos.find((x) => x.id === t.grupo);
+    if (!g) return;
+    if (r === "ok") {
+      this.avanzar();
+      return;
+    }
+    if (r === "sin-mac") {
+      g.esperaMac = true;
+      this.reintentarLuego(REINTENTO_CLON_MS);
+      return;
+    }
+    const n = (g.intentos.get(t.archivo) ?? 0) + 1;
+    g.intentos.set(t.archivo, n);
+    if (n >= INTENTOS_GRUPO) {
+      g.error = true;
+      this.log("voces: no se pudo grabar una voz nueva", { voz: g.voz, agente: g.agenteId, frase: t.texto.slice(0, 60) });
+      this.avanzar();
+    } else this.reintentarLuego(REINTENTO_MS);
+  }
+
+  private reintentarLuego(ms: number): void {
+    if (this.reintento) return;
+    this.reintento = setTimeout(() => {
+      this.reintento = null;
+      const g = this.activo();
+      if (!g) return;
+      g.esperaMac = false;
+      for (const t of g.trabajos) if ((g.intentos.get(t.archivo) ?? 0) < INTENTOS_GRUPO) this.encolar(t.voz, t.texto, false, { archivo: t.archivo, grupo: g.id });
+      for (const f of ["edge", "kokoro", "clon"] as const) void this.correr(f);
+    }, ms);
+    this.reintento.unref?.();
+  }
+
+  /** Lo que se está grabando, en el orden de la cola, para que la página muestre «Grabando 12 de 20 · sigue con Alex». */
+  grabando(): GrabandoVoz[] {
+    const activo = this.activo();
+    return this.grupos.map((g) => ({
+      quien: g.quien,
+      agenteId: g.agenteId,
+      voz: g.voz,
+      sigueCon: g.anterior,
+      hechas: [...g.nuevos].filter((a) => existsSync(join(this.dirVoces, a))).length,
+      total: g.nuevos.size,
+      enCola: !g.error && g !== activo,
+      esperaMac: g.esperaMac && g === activo,
+      error: g.error,
+    }));
+  }
+
+  /** Lo que ve el panel «Voces» de este worker: si se puede, lo elegido y lo que se está grabando. */
+  estadoElegir(): EstadoVoz & { eleccion: EleccionVoces; grabando: GrabandoVoz[]; cambios: boolean } {
+    const eleccion = this.eleccion();
+    return { ...this.estado(), eleccion, grabando: this.grabando(), cambios: hayCambios(eleccion, this.indice()?.agentes ?? null) };
+  }
+
+  /**
+   * Abre el motor de esa voz antes de leer (punto 3 del spike de JST-323): la
+   * página lo pide al abrir el menú del Resumen o al tocar «Leer contexto». Solo
+   * las que leen al momento, y solo si se puede en esta Mac.
+   */
+  calentar(voz: unknown): boolean {
+    const v = vozPorId(voz);
+    if (!v || !esAlMomento(v.id) || !this.estado().disponible) return false;
+    if (v.motor === "kokoro" && !hayModeloKokoro()) return false;
+    this.calentarMotor(filaDe(v.motor), v.motor);
+    return true;
   }
 
   /** Cuánto dura un MP3 de la carpeta de las voces (ms), o `null` si no se sabe. */
@@ -583,6 +896,8 @@ export class PreparadorVoces {
   /** Paperclip se apaga o reinicia el worker: se cierran los motores (la fila se pierde; la página vuelve a pedir). */
   cerrar(): void {
     for (const f of ["edge", "kokoro", "clon"] as const) this.filas[f] = [];
+    if (this.reintento) clearTimeout(this.reintento);
+    this.reintento = null;
     this.motores.cerrarTodos();
   }
 }
@@ -784,6 +1099,12 @@ class Motores {
     } finally {
       rmSync(salida, { force: true });
     }
+  }
+
+  /** Abre el motor (carga el modelo) y lo deja `ms` sin trabajo antes de cerrarlo. */
+  calentar(fila: Fila, motor: Motor, ms: number): void {
+    this.abrir(fila, motor);
+    this.dormir(fila, ms);
   }
 
   /** Sin trabajo: se cierra a los `ms` (si no llega otra frase antes). */

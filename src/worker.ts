@@ -11,7 +11,8 @@ import { PreparadorVoces } from "./vozViva.js";
 // 0.5.0.»), cuando una Oficina con ese interruptor prendido se lo pide. Corre
 // los motores de las voces (uv, Python, los modelos y ffmpeg) en la Mac y deja
 // los audios en su carpeta (`dist/ui/voces/vivo/`). `ctx.actions` no pide
-// capacidades. La 0.9.0 (JST-246) le suma el Resumen en voz alta (`voz-resumen`).
+// capacidades. La 0.9.0 (JST-246) le suma el Resumen en voz alta (`voz-resumen`) y la 0.11.0 (JST-325),
+// elegir las voces (`voz-elegir`).
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 let voces: PreparadorVoces | null = null;
 
@@ -31,12 +32,19 @@ const plugin = definePlugin({
       return { estados: await voces!.esperarOficina(pedidos, Number(params.ms) || 0) };
     });
     // Si en esta Mac se puede (hay `uv` y `ffmpeg`): el panel «Voces» lo muestra.
-    ctx.actions.register("voz-estado", async () => voces!.estado());
+    // 0.11.0 (JST-325): además, lo elegido y lo que se está grabando al cambiar una voz.
+    ctx.actions.register("voz-estado", async () => voces!.estadoElegir());
     // 0.7.0 (JST-232): si la IA de Chrome de la página puede escribir ahora (la Mac no está cargada ni hay un clon generando).
     // 0.8.1 (JST-249): con `ms`, si hay un clon generando espera a que termine (≤ 15 s) antes de decir que no.
     ctx.actions.register("ia-permiso", async (params) => voces!.esperarPermisoIa(Number(params?.ms) || 0));
     // 0.9.0 (JST-246): el Resumen con la voz del Chief of staff; responde cuando está la primera frase, cuando no se puede o a los `ms` (≤ 20 s).
     ctx.actions.register("voz-resumen", async (params) => ({ estados: await voces!.esperarResumen(params, Number(params.ms) || 0) }));
+    // 0.11.0 (JST-325): elegir la voz del Resumen, la de «Leer contexto» o la de un agente; volver a como estaba; abrir el motor de una voz antes de leer.
+    ctx.actions.register("voz-elegir", async (params) => voces!.elegir(params));
+    ctx.actions.register("voz-reiniciar", async () => voces!.reiniciar());
+    ctx.actions.register("voz-calentar", async (params) => ({ ok: voces!.calentar(params.voz) }));
+    // Lo que quedó grabándose cuando se apagó el worker sigue, y los «3 agentes te necesitan» van con la voz del Resumen.
+    voces.reanudar();
   },
   async onHealth() {
     return { status: "ok", message: "Oficina global activa" };
