@@ -17,7 +17,7 @@ import { Capa } from "./capas.js";
 import { LectorContexto, msEscrita, tareaDeRuta, type EstadoContexto, type VozContexto } from "./contextoLector.js";
 import { cx, Icono } from "./piso.js";
 import { resumen } from "./resumen.js";
-import { vocesDisponibles } from "./sonido.js";
+import { fijarContextoSonando, vocesDisponibles } from "./sonido.js";
 import { useCelular, useMovimientoReducido } from "./useOficina.js";
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,10 @@ export const contexto = new LectorContexto({
     return () => clearTimeout(t);
   },
   antesDeLeer: () => resumen.pausarPorContexto(),
-  alActivo: (on) => resumen.fijarContextoLee(on),
+  alActivo: (on) => {
+    resumen.fijarContextoLee(on);
+    fijarContextoSonando(on);
+  },
 });
 
 if (typeof window !== "undefined") {
@@ -130,7 +133,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-function useContexto(): LectorContexto {
+export function useContexto(): LectorContexto {
   useSyncExternalStore(contexto.suscribir, () => contexto.version);
   return contexto;
 }
@@ -139,8 +142,8 @@ function useContexto(): LectorContexto {
 // El botón
 // ---------------------------------------------------------------------------
 
-const ICONO: Readonly<Record<EstadoContexto, string>> = { listo: "volume-2", cargando: "loader", leyendo: "x", fin: "check", error: "triangle-alert" };
-const TEXTO: Readonly<Record<EstadoContexto, string>> = { listo: "Leer contexto", cargando: "Leer contexto", leyendo: "Detener", fin: "Leído", error: "No se pudo" };
+export const ICONO: Readonly<Record<EstadoContexto, string>> = { listo: "volume-2", cargando: "loader", leyendo: "x", fin: "check", error: "triangle-alert" };
+export const TEXTO: Readonly<Record<EstadoContexto, string>> = { listo: "Leer contexto", cargando: "Leer contexto", leyendo: "Detener", fin: "Leído", error: "No se pudo" };
 const ARIA: Readonly<Record<EstadoContexto, string>> = {
   listo: "Leer contexto de la tarea",
   cargando: "Cargando el contexto de la tarea",
@@ -239,35 +242,36 @@ function useBajoBoton(boton: RefObject<HTMLElement | null>, activo: boolean, cel
   return activo ? pos : null;
 }
 
-/** Sin voz en español (§5): todas las frases escritas, con la que va marcada; sigue a la que va. */
-function PanelEscrito({ c, celular, estilo }: { c: LectorContexto; celular: boolean; estilo: CSSProperties }) {
+/**
+ * Sin voz en español (§5): todas las frases escritas, con la que va marcada; sigue a la que va. En la barra va flotando
+ * (`estilo`); en la ventana de responder (JST-321) va `dentro`, bajo la fila de la tarea, sin flotar ni tapar.
+ */
+export function EscritoContexto({ c, celular, estilo, dentro = false }: { c: LectorContexto; celular: boolean; estilo?: CSSProperties; dentro?: boolean }) {
   const caja = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = caja.current;
     const cur = el?.querySelector<HTMLElement>("p.is-cur");
     if (!el || !cur) return;
-    const arriba = cur.offsetTop;
+    const arriba = cur.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
     if (arriba < el.scrollTop + 40 || arriba + cur.offsetHeight > el.scrollTop + el.clientHeight - 8) el.scrollTop = Math.max(0, arriba - 48);
   }, [c.k]);
   return (
-    <Capa>
-      <div ref={caja} className={cx("of-ctx-esc", celular && "is-m")} style={estilo} role="region" aria-label="Contexto de la tarea, escrito">
-        <div className="of-ctx-eh">
-          <Icono nombre="volume-x" tam={14} />
-          <span>
-            <b>Este navegador no tiene voz en español.</b> Te lo dejo escrito.
-          </span>
-          <button type="button" className="of-ibtn is-ghost" aria-label="Detener lectura" title="Detener" onClick={() => c.detener()}>
-            <Icono nombre="x" tam={celular ? 18 : 14} />
-          </button>
-        </div>
-        {c.frases.map((f, i) => (
-          <p key={i} className={i === c.k ? "is-cur" : i > c.k ? "is-fut" : undefined} aria-current={i === c.k ? "true" : undefined}>
-            {f}
-          </p>
-        ))}
+    <div ref={caja} className={cx("of-ctx-esc", dentro && "is-in", celular && "is-m")} style={estilo} role="region" aria-label="Contexto de la tarea, escrito">
+      <div className="of-ctx-eh">
+        <Icono nombre="volume-x" tam={14} />
+        <span>
+          <b>Este navegador no tiene voz en español.</b> Te lo dejo escrito.
+        </span>
+        <button type="button" className="of-ibtn is-ghost" aria-label="Detener lectura" title="Detener" onClick={() => c.detener()}>
+          <Icono nombre="x" tam={celular ? 18 : 14} />
+        </button>
       </div>
-    </Capa>
+      {c.frases.map((f, i) => (
+        <p key={i} className={i === c.k ? "is-cur" : i > c.k ? "is-fut" : undefined} aria-current={i === c.k ? "true" : undefined}>
+          {f}
+        </p>
+      ))}
+    </div>
   );
 }
 
@@ -311,7 +315,11 @@ export function BotonContextoBarra() {
       <span className="of-sr" role="status">
         {e === "fin" ? "Leído" : e === "error" ? "No se pudo cargar la tarea" : ""}
       </span>
-      {escrito && bajo ? <PanelEscrito c={c} celular={celular} estilo={bajo} /> : null}
+      {escrito && bajo ? (
+        <Capa>
+          <EscritoContexto c={c} celular={celular} estilo={bajo} />
+        </Capa>
+      ) : null}
       {aviso && bajo ? (
         <Capa>
           <div className="of-ctx-toast" style={bajo}>

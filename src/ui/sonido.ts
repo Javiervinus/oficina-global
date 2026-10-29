@@ -583,13 +583,25 @@ export function avisoActivo(): boolean {
 // ---------------------------------------------------------------------------
 
 let resumenLocal = false;
+let contextoLocal = false;
 let resumenAjenoHasta = 0;
 let relojResumenAjeno: ReturnType<typeof setTimeout> | null = null;
 let audioResumen: HTMLAudioElement | null = null;
 
-/** Suena el Resumen en esta pestaña o en otra: los avisos y lo de la oficina callan. */
+/** Suena el Resumen en esta pestaña o en otra, o se lee el contexto de una tarea aquí: los avisos y lo de la oficina callan. */
 export function resumenSonando(): boolean {
-  return resumenLocal || Date.now() < resumenAjenoHasta;
+  return resumenLocal || contextoLocal || Date.now() < resumenAjenoHasta;
+}
+
+/**
+ * «Leer contexto» (barra de arriba y ventana de responder, JST-321 §2.6): mientras lee, la voz de la oficina no empieza
+ * frases nuevas, igual que con el Resumen. Se llama al pasar a Cargando, antes de la primera frase.
+ */
+export function fijarContextoSonando(on: boolean): void {
+  if (on === contextoLocal) return;
+  contextoLocal = on;
+  if (on) callarAvisos();
+  revisarAvisos();
 }
 
 /** Empieza (o termina) el Resumen en esta pestaña. Al empezar, se callan el aviso que suena y los que esperan. */
