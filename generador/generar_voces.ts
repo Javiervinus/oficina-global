@@ -150,9 +150,11 @@ mkdirSync(DIR, { recursive: true });
 const previo = existsSync(join(DIR, "indice.json")) ? leerIndice(JSON.parse(readFileSync(join(DIR, "indice.json"), "utf8"))) : null;
 const lista = await agentes();
 const voces = asignarVoces(previo?.agentes ?? {}, lista);
-const todos = plan(lista, voces);
+// 0.11.0 (JST-325): la voz de los «3 agentes te necesitan» es la que el usuario eligió para el Resumen (la que ya está en el índice).
+const vozResumen = previo?.resumen ?? VOZ_RESUMEN;
+const todos = plan(lista, voces, vozResumen);
 const hecho = (t: Trabajo) => existsSync(join(DIR, t.archivo));
-const indice: IndiceVoces = { version: 1, generado: new Date().toISOString(), resumen: VOZ_RESUMEN, agentes: voces, audios: {} };
+const indice: IndiceVoces = { version: 1, generado: new Date().toISOString(), resumen: vozResumen, agentes: voces, audios: {} };
 for (const t of todos) if (hecho(t)) indice.audios[claveAudio(t.voz.id, t.texto)] = t.archivo;
 
 const tabla = [

@@ -11,13 +11,15 @@
 //   barra no se desmonta, así que se mira la ruta. Un ancla de la misma tarea no.
 // - Una voz a la vez con el Resumen (§7): ver `resumen.ts`.
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from "react";
-import { useHostLocation } from "@paperclipai/plugin-sdk/ui";
+import { useHostContext, useHostLocation } from "@paperclipai/plugin-sdk/ui";
 import { textoDeTarea } from "./botonContexto.js";
 import { Capa } from "./capas.js";
 import { LectorContexto, msEscrita, tareaDeRuta, type EstadoContexto, type VozContexto } from "./contextoLector.js";
+import { VozContextoElegida } from "./contextoMotor.js";
+import { calentarVoz } from "./eleccion.js";
 import { cx, Icono } from "./piso.js";
 import { resumen } from "./resumen.js";
-import { fijarContextoSonando, vocesDisponibles } from "./sonido.js";
+import { audioDelResumen, fijarContextoSonando, vocesDisponibles } from "./sonido.js";
 import { useCelular, useMovimientoReducido } from "./useOficina.js";
 
 // ---------------------------------------------------------------------------
@@ -96,13 +98,23 @@ const vozNavegador: VozContexto = {
 // Una por pestaña
 // ---------------------------------------------------------------------------
 
+/** La empresa que ve el usuario en esta página (para hablarle al worker de las voces). */
+let empresaDeVoz: string | null = null;
+
+/** El `<audio>` desbloqueado dentro del toque (se toma al empezar a leer: `antesDeLeer` corre dentro del clic). */
+let audioContexto: HTMLAudioElement | null = null;
+
 export const contexto = new LectorContexto({
-  voz: vozNavegador,
+  // 0.11.0 (JST-325): la voz que el usuario eligió en «Voces» (Dora al instalar); la del navegador, si eligió esa o no hay worker.
+  voz: new VozContextoElegida({ companyId: () => empresaDeVoz ?? resumen.empresaDeVoz(), audio: () => audioContexto, navegador: vozNavegador }),
   programar: (fn, ms) => {
     const t = setTimeout(fn, ms);
     return () => clearTimeout(t);
   },
-  antesDeLeer: () => resumen.pausarPorContexto(),
+  antesDeLeer: () => {
+    audioContexto = audioDelResumen();
+    resumen.pausarPorContexto();
+  },
   alActivo: (on) => {
     resumen.fijarContextoLee(on);
     fijarContextoSonando(on);
@@ -282,6 +294,8 @@ export function BotonContextoBarra() {
   const celular = useCelular();
   const rm = useMovimientoReducido();
   const c = useContexto();
+  const host = useHostContext();
+  empresaDeVoz = host.companyId ?? empresaDeVoz;
   const boton = useRef<HTMLButtonElement>(null);
   const caja = useRef<HTMLSpanElement>(null);
   const borde = useAlBorde(caja, celular && !!tarea);
@@ -306,7 +320,11 @@ export function BotonContextoBarra() {
         aria-label={ARIA[e]}
         title={TITULO[e]}
         aria-busy={e === "cargando" ? true : undefined}
-        onClick={() => c.tocar(tarea, () => textoDeTarea(tarea))}
+        onPointerEnter={() => calentarVoz("contexto", empresaDeVoz ?? resumen.empresaDeVoz())}
+        onClick={() => {
+          calentarVoz("contexto", empresaDeVoz ?? resumen.empresaDeVoz());
+          c.tocar(tarea, () => textoDeTarea(tarea));
+        }}
       >
         <Icono nombre={ICONO[e]} tam={celular ? 18 : 14} className={e === "cargando" ? "of-spin" : undefined} />
         {celular ? null : <span className="of-ctx-t">{TEXTO[e]}</span>}

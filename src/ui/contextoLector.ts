@@ -49,6 +49,11 @@ export interface VozContexto {
    * si la cortó la función que devuelve). `primera`: la primera frase de la lectura.
    */
   decir(frase: string, alTerminar: (cortada: boolean) => void, primera: boolean): () => void;
+  /**
+   * 0.11.0 (JST-325): con una voz de la lista, pide el audio de las primeras frases y espera el de la primera mientras
+   * el estado sigue en «Cargando…» (el motor tarda 3 a 5 s en abrirse). La del navegador no lo necesita.
+   */
+  preparar?(frases: readonly string[]): Promise<void>;
 }
 
 export interface DepsContexto {
@@ -122,6 +127,11 @@ export class LectorContexto {
     if (this.frases.length === 0) {
       this.terminar(n);
       return;
+    }
+    // Con una voz de la lista, el audio de la primera frase se espera aquí, en «Cargando…».
+    if (hayVoz && this.d.voz.preparar) {
+      await this.d.voz.preparar(this.frases).catch(() => undefined);
+      if (n !== this.lectura) return;
     }
     this.estado = "leyendo";
     this.avisar();

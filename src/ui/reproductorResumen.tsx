@@ -165,7 +165,7 @@ function Avance({ l, rm }: { l: Lector; rm: boolean }) {
 }
 
 /** El centro del reproductor: la parte y la frase que suena, o lo que pasa (§8). */
-function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contextoLee: boolean }): ReactNode {
+function Centro({ l, conIa, contextoLee, cayo }: { l: Lector; conIa: boolean; contextoLee: boolean; cayo: boolean }): ReactNode {
   if (l.fase === "armando") {
     return (
       <>
@@ -206,6 +206,8 @@ function Centro({ l, conIa, contextoLee }: { l: Lector; conIa: boolean; contexto
       </span>
       {fr.length > 1 ? <span className="of-rsa-k">{`${l.pos.k + 1} de ${fr.length}`}</span> : null}
       {l.fase === "pausa" ? <span className="of-rsa-pz">{contextoLee ? "En pausa · lees el contexto" : "En pausa"}</span> : null}
+      {/* JST-325: el audio de la voz elegida no llegó a tiempo y sigue la del navegador (antes cambiaba sin avisar). */}
+      {cayo && l.fase !== "pausa" ? <span className="of-rsa-pz" title="El audio de la voz elegida no llegó a tiempo">Voz del navegador</span> : null}
     </span>
   );
   const f = l.actual();
@@ -422,7 +424,7 @@ export function ReproductorResumen() {
               </>
             )}
             <div className="of-rsa-c" aria-live="polite">
-              <Centro l={l} conIa={r.conIa} contextoLee={r.contextoLee} />
+              <Centro l={l} conIa={r.conIa} contextoLee={r.contextoLee} cayo={!!r.voz?.cayo} />
             </div>
             {celular ? null : (
               <button type="button" className="of-btn is-sm is-ghost of-rsa-vel" title="Velocidad" onClick={() => l.cambiarVelocidad()}>

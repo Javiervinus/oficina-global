@@ -19,7 +19,9 @@ import { Capa, useEsc } from "./capas.js";
 import { CajaPersonaje, cx, EtiquetaEmpresa, Icono, Personaje } from "./piso.js";
 import { cargarIndice, useIndiceVoces } from "./audiosVoces.js";
 import { desbloquearAudio, probarVoz, probarVozDetalle, tocarCampana, useHayVoces, useSubtitulo } from "./sonido.js";
+import { abrirPanelVoces } from "./eleccion.js";
 import { useEstadoVozViva } from "./vozViva.js";
+import { PaginaAgentes, QuienHabla } from "./vocesElegir.js";
 
 // ---------------------------------------------------------------------------
 // Piezas comunes
@@ -314,12 +316,19 @@ function FilasOficina() {
 }
 
 function PanelVoces({ agentes }: { agentes: readonly AgenteVista[] }) {
+  // 0.11.0 (JST-325): «Cada agente ›» abre una página dentro del mismo panel.
+  const [pagina, setPagina] = useState<"voces" | "agentes">("voces");
   const aj = useAjustes();
   const hayVoces = useHayVoces();
   const ejemplo = primeroQueEspera(agentes) ?? agentes[0] ?? null;
   // 0.5.0 (JST-163): si en esta Mac se pueden preparar las frases con la tarea (`uv` y `ffmpeg`, en el worker).
   const vivo = useEstadoVozViva(ejemplo?.companyId ?? agentes[0]?.companyId ?? null, true);
   const sinMac = vivo?.disponible === false;
+  const companyId = ejemplo?.companyId ?? agentes[0]?.companyId ?? null;
+  // Lo elegido y lo que se está grabando, al abrir el panel.
+  useEffect(() => {
+    if (companyId) void abrirPanelVoces(companyId);
+  }, [companyId]);
   // El ejemplo (y «Probar»): el primero que te espera, con «terminé» si está prendida (si no, la primera prendida), y su
   // detalle si está prendido. La tarea es una muestra fija; la pregunta (0.8.0), «¿Instalo la versión nueva ahora?»; el motivo, «límite de uso».
   const fraseEj: Frase = aj.frases.fin ? "fin" : (ORDEN_EJEMPLO.find((f) => aj.frases[f]) ?? "fin");
@@ -343,6 +352,7 @@ function PanelVoces({ agentes }: { agentes: readonly AgenteVista[] }) {
     else probarVozDetalle(frase, [base, fraseEj === "toca" ? MUESTRA_PREGUNTA : TEXTO_MUESTRA], agente);
   };
 
+  if (pagina === "agentes" && companyId) return <PaginaAgentes agentes={agentes} companyId={companyId} sinMac={sinMac} onVolver={() => setPagina("voces")} />;
   return (
     <div className={cx("of-avp of-vzp", !aj.voces && "is-apagadas")}>
       <div className="of-avp-h">
@@ -354,6 +364,7 @@ function PanelVoces({ agentes }: { agentes: readonly AgenteVista[] }) {
       <p>
         Cada agente lo dice en voz alta, con su propia voz. Por ejemplo{voz ? ` (${voz.nombre})` : ""}: <b>«{frase}»</b>
       </p>
+      <QuienHabla agentes={agentes} companyId={companyId} onAgentes={() => setPagina("agentes")} />
       <div className="of-vz-cab" aria-hidden="true">
         <span>Avisos</span>
         <span>Y de qué se trata</span>
@@ -406,7 +417,7 @@ function PanelVoces({ agentes }: { agentes: readonly AgenteVista[] }) {
           <Icono nombre="volume-2" tam={14} />
           <span>
             <b>9 voces: Lorenzo, Catalina, Alex, Dora, Santa y 4 clones chilenos</b>
-            <em>{hayVoces ? "Una para cada agente, al azar · si falta su audio, esa vez habla la del navegador" : "Una para cada agente, al azar · si falta su audio, esa vez solo se verá el subtítulo"}</em>
+            <em>{hayVoces ? "Una para cada agente, que puedes cambiar arriba · si falta su audio, esa vez habla la del navegador" : "Una para cada agente, que puedes cambiar arriba · si falta su audio, esa vez solo se verá el subtítulo"}</em>
           </span>
         </span>
         <button type="button" className="of-btn is-xs" onClick={probar}>
@@ -623,12 +634,16 @@ export function BotonesAvisos({ celular, agentes, rm: _rm }: {
 /** Subtítulo de la voz, abajo al centro (página y TV), mientras habla (`useSubtitulo`). `agentes`: para la cabeza del personaje. */
 export function SubtituloVoz({ agentes, rm }: { agentes: readonly AgenteVista[]; rm: boolean }): ReactNode {
   const s = useSubtitulo();
+  const indice = useIndiceVoces();
   if (!s) return null;
   const a = s.agenteId ? agentes.find((x) => x.id === s.agenteId) : undefined;
   const aspecto = a?.aspecto ?? s.aspecto;
+  // 0.11.0 (JST-325 §1.6): los avisos juntos («3 agentes te necesitan.») no tienen cabeza: el subtítulo dice quién los lee.
+  const lee = !s.agenteId && !aspecto && indice && /^\d+ agentes /.test(s.texto) ? vozPorId(indice.resumen) : null;
   return (
     <div className={cx("of-subt", rm && "is-rm")} role="status">
       <Icono nombre="volume-2" tam={14} />
+      {lee ? <span className="vz-subt-voz">Resumen · {lee.nombre}</span> : null}
       {aspecto ? (
         <span className="of-subt-c" aria-hidden="true">
           <Personaje aspecto={aspecto} anim="parado" x={0} y={0} quieto />

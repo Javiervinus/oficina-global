@@ -1,6 +1,8 @@
 // La voz del Resumen (0.9.0, design-spec de JST-245 §4): cada frase es un audio
-// de la voz del Chief of staff (hoy Lorenzo, de Edge) que hace el worker
-// (`voz-resumen`) y queda en `voces/vivo/`, como las demás voces de la Oficina.
+// de la voz que hace el worker (`voz-resumen`) y queda en `voces/vivo/`, como las
+// demás voces de la Oficina. Desde la 0.11.0 (JST-325) es la que el usuario elige
+// en «Voces» (Alex al instalar; antes, la del Chief of staff); «Leer contexto»
+// usa el mismo camino (`contextoVozElegida.ts`).
 //
 // - La frase que suena y las 2 que siguen se le piden juntas; mientras suena
 //   una, se pide la siguiente (Edge tarda de 0,3 a 2,5 s por frase y cada frase
@@ -8,9 +10,12 @@
 // - Lo primero que escribió la IA de una parte se pide antes de decirlo
 //   (`preparar`, JST-257): si su audio no está a tiempo, el lector dice la
 //   armada, cuyo audio ya se pidió con la frase anterior.
-// - Si un audio tarda más de 4 s o falla, desde esa frase hasta el final habla
-//   la voz en español del navegador, para que no se alternen voces. Sin voz en
-//   español, la frase queda escrita y se avanza al ritmo de lo que duraría.
+// - Si un audio tarda más de 8 s (la primera, 10 s: el motor se abre) o falla,
+//   desde esa frase hasta el final habla la voz en español del navegador, para
+//   que no se alternen voces; el reproductor lo dice. Sin voz en español, la
+//   frase queda escrita y se avanza al ritmo de lo que duraría. Con 4 s, Alex
+//   (la más lenta de las 5, 3,3 s por frase) caía al navegador en la mitad de
+//   las lecturas; con 10 y 8, en 2 % (spike de JST-323).
 // - La velocidad: `playbackRate` del audio con `preservesPitch`; con la voz del
 //   navegador, `rate`.
 import { vocesEspanol } from "../avisos.js";
@@ -22,20 +27,22 @@ import { archivoVivo, type VozId } from "../voces.js";
 import { instalacion, pedirArchivo, yaBajado } from "./audiosVoces.js";
 import { vigilarFin } from "./sonido.js";
 
-/** Lo más que se espera el audio de una frase desde que toca decirla. */
-export const ESPERA_AUDIO_RESUMEN_MS = 4_000;
+/** Lo más que se espera el audio de una frase desde que toca decirla (la primera espera `ESPERA_PRIMERA_MS`). */
+export const ESPERA_AUDIO_RESUMEN_MS = 8_000;
+/** La primera frase de una lectura: el motor de la voz se abre (3 a 5 s con Alex) y recién ahí genera. */
+export const ESPERA_PRIMERA_MS = 10_000;
 /** Lo más que se pide el audio de una frase que se prepara (después, quien la espere decide). */
 const PREPARAR_MS = 8_000;
 /** La voz del navegador a veces no avisa que terminó (Chrome): se sigue a las 2,2 veces lo que debería durar. */
 const TOPE_NAVEGADOR = 2.2;
 
-export type ModoVoz = "lorenzo" | "navegador";
+export type ModoVoz = "voz" | "navegador";
 
 /** Lo que sonó (para la QA y el audio de muestra): cuándo, qué, con qué voz, cuánto esperó su audio y cuánto duró. */
 export interface Sonado {
   t: number;
   texto: string;
-  voz: "lorenzo" | "navegador" | "escrita";
+  voz: VozId | "navegador" | "escrita";
   archivo: string | null;
   esperaMs: number;
   ms: number | null;
@@ -46,7 +53,7 @@ const conPlazo = <T>(p: Promise<T>, hasta: number): Promise<T | null> => Promise
 
 export class VozResumen implements VozLector {
   modo: ModoVoz;
-  /** Este navegador no tiene voz en español: lo que no sonó con Lorenzo queda escrito. */
+  /** Este navegador no tiene voz en español: lo que no sonó con la voz elegida queda escrito. */
   sinVoces = false;
   readonly sonado: Sonado[] = [];
   private cortes = new Set<() => void>();
@@ -54,13 +61,17 @@ export class VozResumen implements VozLector {
   /** Lo que `preparar` está pidiendo (por texto) y lo que ya bajó. */
   private preparadas = new Map<string, Promise<Blob | null>>();
   private listas = new Set<string>();
-  /** La voz del Chief of staff, cuando se leyó el índice de las voces (`null`: no hay; habla el navegador). */
+  /** La voz elegida para el Resumen, cuando se sabe (`null`: eligió la del navegador o no hay worker; habla el navegador). */
   vozId: VozId | null = null;
+  /** El audio de la voz elegida no llegó a tiempo: habla la del navegador desde ahí (el reproductor lo dice). */
+  cayo = false;
+  /** Las frases que ya empezaron: la primera espera más. */
+  private dichas = 0;
   private readonly lista: Promise<void>;
 
   constructor(
     private readonly o: {
-      /** La voz del Chief of staff (Edge o Kokoro), cuando se sepa; `null` si no hay voces: habla el navegador. */
+      /** La voz elegida (Edge o Kokoro), cuando se sepa; `null` si eligió la del navegador o no hay voces: habla el navegador. */
       voz: Promise<VozId | null>;
       resumen: string;
       /** Para la acción del worker (el host revisa que el usuario la vea). */
@@ -69,10 +80,12 @@ export class VozResumen implements VozLector {
       alCambiar: () => void;
     },
   ) {
-    this.modo = o.companyId && o.audio ? "lorenzo" : "navegador";
+    this.modo = o.companyId && o.audio ? "voz" : "navegador";
     this.lista = o.voz.then(
       (v) => {
         this.vozId = v;
+        // Eligió la del navegador (o no hay worker): nada que esperar.
+        if (!v) this.modo = "navegador";
       },
       () => undefined,
     );
@@ -114,7 +127,7 @@ export class VozResumen implements VozLector {
    * 8 s por la primera.
    */
   private bajarLasQueSiguen(siguen: readonly string[]): void {
-    if (this.modo !== "lorenzo" || siguen.length === 0 || !this.vozId) return;
+    if (this.modo !== "voz" || siguen.length === 0 || !this.vozId) return;
     const textos = siguen.slice(0, FRASES_POR_PEDIDO).filter((t) => !yaBajado(this.archivo(t)));
     if (textos.length === 0) return;
     const clave = textos.join("\u0000");
@@ -133,13 +146,13 @@ export class VozResumen implements VozLector {
    * `true` al tiro. La voz del navegador no necesita audio: `true`.
    */
   preparar(f: FraseResumen, ms: number): boolean | Promise<boolean> {
-    if (this.modo !== "lorenzo" || !this.o.audio || this.listas.has(f.texto)) return true;
+    if (this.modo !== "voz" || !this.o.audio || this.listas.has(f.texto)) return true;
     const hasta = Date.now() + ms;
     return (async () => {
       const leida = await conPlazo(this.lista.then(() => true), hasta);
       if (!leida) return false;
-      // Sin la voz del Chief of staff habla el navegador: no hay audio que esperar.
-      if (!this.vozId || this.modo !== "lorenzo") return true;
+      // Sin voz elegida habla el navegador: no hay audio que esperar.
+      if (!this.vozId || this.modo !== "voz") return true;
       const texto = f.texto;
       let p = this.preparadas.get(texto);
       if (!p) {
@@ -165,8 +178,14 @@ export class VozResumen implements VozLector {
     this.cortes.add(corte);
     const fin = (async () => {
       const t0 = Date.now();
-      if (this.modo === "lorenzo") {
-        const blob = await this.blobDe(f.texto, siguen, t0 + ESPERA_AUDIO_RESUMEN_MS);
+      const primera = this.dichas === 0;
+      this.dichas += 1;
+      const hasta = t0 + (primera ? ESPERA_PRIMERA_MS : ESPERA_AUDIO_RESUMEN_MS);
+      // Primero se sabe cuál eligió: si es la del navegador, no hay audio que esperar ni nada que avisar.
+      if (this.modo === "voz") await conPlazo(this.lista, hasta);
+      if (cortada) return;
+      if (this.modo === "voz") {
+        const blob = await this.blobDe(f.texto, siguen, hasta);
         if (cortada) return;
         if (blob && this.o.audio) {
           this.bajarLasQueSiguen(siguen);
@@ -175,6 +194,7 @@ export class VozResumen implements VozLector {
         }
         // No llegó a tiempo (o no se pudo tocar): desde aquí, la voz del navegador.
         this.modo = "navegador";
+        this.cayo = true;
         this.o.alCambiar();
       }
       if (cortada) return;
@@ -220,7 +240,7 @@ export class VozResumen implements VozLector {
         () => {
           reloj.empezo();
           const ms =Number.isFinite(a.duration) && a.duration > 0 ? Math.round((a.duration * 1000) / velocidad) : null;
-          this.sonado.push({ t: Date.now(), texto: f.texto, voz: "lorenzo", archivo: this.archivo(f.texto), esperaMs, ms });
+          this.sonado.push({ t: Date.now(), texto: f.texto, voz: this.vozId!, archivo: this.archivo(f.texto), esperaMs, ms });
           if (this.sonado.length > 200) this.sonado.shift();
           alEmpezar(ms);
         },

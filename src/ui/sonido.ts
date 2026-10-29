@@ -584,13 +584,15 @@ export function avisoActivo(): boolean {
 
 let resumenLocal = false;
 let contextoLocal = false;
+/** 0.11.0 (JST-325): suena la muestra (▶) de una voz en «Voces». */
+let muestraLocal = false;
 let resumenAjenoHasta = 0;
 let relojResumenAjeno: ReturnType<typeof setTimeout> | null = null;
 let audioResumen: HTMLAudioElement | null = null;
 
 /** Suena el Resumen en esta pestaña o en otra, o se lee el contexto de una tarea aquí: los avisos y lo de la oficina callan. */
 export function resumenSonando(): boolean {
-  return resumenLocal || contextoLocal || Date.now() < resumenAjenoHasta;
+  return resumenLocal || contextoLocal || muestraLocal || Date.now() < resumenAjenoHasta;
 }
 
 /**
@@ -600,6 +602,14 @@ export function resumenSonando(): boolean {
 export function fijarContextoSonando(on: boolean): void {
   if (on === contextoLocal) return;
   contextoLocal = on;
+  if (on) callarAvisos();
+  revisarAvisos();
+}
+
+/** La muestra de una voz en el panel «Voces» (JST-325 §1.2): mientras suena, la voz de la oficina no empieza frases. */
+export function fijarMuestraSonando(on: boolean): void {
+  if (on === muestraLocal) return;
+  muestraLocal = on;
   if (on) callarAvisos();
   revisarAvisos();
 }
